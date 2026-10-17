@@ -1,69 +1,73 @@
-# Wad2-Proj
+# TradeHappy
 
-This template should help get you started developing with Vue 3 in Vite.
+IS216 G5 project (Mok of all trades). A platform for trading pre-used items: list items, get matched, propose trades, chat, pick a meetup point and inspect items at handover.
 
-## Recommended IDE Setup
+## Stack
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **Frontend:** Vue 3 (Composition API) + Vue Router + Pinia + Bootstrap 5 + Axios, built with Vite (project root)
+- **Backend:** Node.js + Express + MongoDB (Mongoose), sessions for login (`server/`)
+- **Images:** Supabase Storage (`src/lib/storage.js`)
+- **Maps:** OneMap search and static map API (no key needed)
 
-## Recommended Browser Setup
+## Where each feature lives
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+| Feature | Owner | Frontend | Backend |
+| --- | --- | --- | --- |
+| 1. Listings, search & matching | Agnella | `HomeView`, `ListingFormView`, `ListingDetailView`, `MyListingsView`, `ProfileView` | `listingController.js`, `utils/matching.js` |
+| 2. Trade proposals | Valerie | `ProposeTradeView`, `TradesView`, `TradeDetailView`, `ItemPicker` | `tradeController.js` (create/accept/reject/counter/cancel) |
+| 3. Chat | Ze Xin | `ChatBox` (polls every 3 s) | `messageController.js` |
+| 4. Meetup map | Donald | `MeetupPicker` | `tradeController.setMeetup` |
+| 5. Inspection checklist | Jing Wen | `InspectionChecklist` | `tradeController.updateChecklist/confirmHandover`, `utils/checklists.js` |
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Setup (each teammate, once)
 
 ```sh
-pnpm install
+pnpm install                 # frontend packages
+cd server && pnpm install    # backend packages
 ```
 
-### Compile and Hot-Reload for Development
+1. In the project root, create `.env.local` with the Supabase values (ask the group):
+   ```
+   VITE_SUPABASE_URL=...
+   VITE_SUPABASE_ANON_KEY=...
+   ```
+2. In the `server` folder, create `config.env` (ask the group for the connection string):
+   ```
+   DB=mongodb+srv://...
+   SECRET=any-long-random-text
+   PORT=8000
+   ```
+3. In Supabase, run `supabase/storage-setup.sql` once in the SQL Editor (already done for our project).
+
+Never commit `.env.local` or `server/config.env`; both are in `.gitignore`.
+
+## Run in development
+
+Use two terminals:
 
 ```sh
+# Terminal 1: API on http://localhost:8000
+cd server
+pnpm dev
+
+# Terminal 2: Vue app on http://localhost:5173
 pnpm dev
 ```
 
-### Compile and Minify for Production
+Vite forwards every `/api` request to the Express server (see `vite.config.js`), so the login cookie works without extra setup.
+
+## Production (e.g. AWS EC2)
 
 ```sh
-pnpm build
+pnpm build          # builds the Vue app into dist/
+cd server
+pnpm start          # Express serves the API and dist/ on port 8000
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## Tests and lint
 
 ```sh
-pnpm test:unit
-```
-
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
-
-```sh
-# Install browsers for the first run
-npx playwright install
-
-# When testing on CI, must build the project first
-pnpm build
-
-# Runs the end-to-end tests
-pnpm test:e2e
-# Runs the tests only on Chromium
-pnpm test:e2e --project=chromium
-# Runs the tests of a specific file
-pnpm test:e2e tests/example.spec.ts
-# Runs the tests in debug mode
-pnpm test:e2e --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
+pnpm test:unit      # Vitest component tests
+pnpm test:e2e       # Playwright (run `npx playwright install` first)
 pnpm lint
 ```

@@ -40,3 +40,10 @@ __screenshots__/
 
 test-results/
 playwright-report/
+
+# Local env files (Supabase keys)
+.env
+.env.*
+
+# Backend secrets
+server/config.env

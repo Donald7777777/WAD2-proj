@@ -15,4 +15,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // Forward /api requests to the Express server, so the login cookie works without CORS
+    proxy: {
+      '/api': 'http://localhost:8000',
+    },
+  },
 })
