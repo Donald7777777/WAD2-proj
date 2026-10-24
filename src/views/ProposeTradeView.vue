@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import ListingCard from '@/components/ListingCard.vue'
 import ItemPicker from '@/components/ItemPicker.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,25 +56,50 @@ onMounted(async () => {
 </script>
 
 <template>
-  <h1 class="h4 mb-3">Offer a trade</h1>
+  <RouterLink v-if="listing" :to="`/listings/${listing._id}`" class="th-back"><AppIcon name="back" :size="18" />Back to listing</RouterLink>
+  <div class="th-page-head">
+    <div>
+      <h1>Offer a trade</h1>
+      <p v-if="listing">Pick what you'll give for {{ listing.title }}. You can offer more than one item.</p>
+    </div>
+  </div>
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-  <div v-if="listing" class="row g-4">
-    <div class="col-md-4">
-      <p class="small text-secondary mb-1">You want</p>
-      <ListingCard :listing="listing" />
-    </div>
+  <div v-if="listing" class="th-propose">
+    <section class="th-side th-side-them th-propose-get">
+      <span class="th-side-label"><AppIcon name="box" :size="16" />You get</span>
+      <ListingCard :listing="listing" class="d-none d-md-flex" />
+      <!-- Compact version on phones -->
+      <div class="th-pick th-pick-static d-md-none">
+        <span class="th-pick-thumb">
+          <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" />
+          <AppIcon v-else name="image" />
+        </span>
+        <span class="th-pick-text">
+          <span class="th-pick-title">{{ listing.title }}</span>
+          <span class="th-pick-meta">{{ listing.condition }} · by {{ listing.owner?.name }}</span>
+        </span>
+      </div>
+    </section>
 
-    <div class="col-md-8">
-      <p class="small text-secondary mb-1">Pick one or more of your items to offer</p>
-      <p v-if="available.length === 0">
-        You have no available items. <RouterLink to="/listings/new">List an item</RouterLink> first.
-      </p>
+    <span class="th-swap-disc" aria-hidden="true"><AppIcon name="swap" /></span>
+
+    <section class="th-side th-side-you">
+      <span class="th-side-label"><AppIcon name="box" :size="16" />You give</span>
+      <div v-if="available.length === 0" class="th-empty">
+        <strong>Nothing to offer yet</strong>
+        <p>You have no available items. <RouterLink to="/listings/new">List an item</RouterLink> first.</p>
+      </div>
       <ItemPicker v-else :listings="available" :selected-ids="selectedIds" @toggle="toggle" />
+    </section>
+  </div>
 
-      <button class="btn btn-success mt-3" :disabled="selectedIds.length === 0 || sending" @click="propose">
-        Send proposal ({{ selectedIds.length }} item{{ selectedIds.length === 1 ? '' : 's' }})
-      </button>
-    </div>
+  <div v-if="listing && available.length" class="th-action-bar">
+    <span class="th-action-bar-text">
+      <b class="data">{{ selectedIds.length }}</b> item{{ selectedIds.length === 1 ? '' : 's' }} selected
+    </span>
+    <button class="btn btn-offer" :disabled="selectedIds.length === 0 || sending" @click="propose">
+      <AppIcon name="send" />Send proposal ({{ selectedIds.length }} item{{ selectedIds.length === 1 ? '' : 's' }})
+    </button>
   </div>
 </template>

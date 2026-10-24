@@ -1,6 +1,9 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import StatusBadge from './StatusBadge.vue'
+import ConditionBadge from './ConditionBadge.vue'
+import UserAvatar from './UserAvatar.vue'
+import AppIcon from './AppIcon.vue'
 
 defineProps({
   listing: Object,
@@ -12,48 +15,40 @@ defineProps({
 </script>
 
 <template>
-  <div class="card h-100 shadow-sm">
-    <div class="position-relative">
-      <img
-        v-if="listing.imageUrl"
-        :src="listing.imageUrl"
-        :alt="listing.title"
-        class="card-img-top listing-img"
-      />
-      <div v-else class="listing-img bg-secondary-subtle d-flex align-items-center justify-content-center">
-        <span class="text-secondary">No photo</span>
+  <article class="card th-listing h-100">
+    <div class="th-listing-media">
+      <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" loading="lazy" />
+      <div v-else class="th-listing-noimg">
+        <AppIcon name="image" :size="28" />
+        <span>No photo yet</span>
       </div>
-      <span v-if="score" class="badge bg-dark position-absolute top-0 start-0 m-2">{{ score }}% match</span>
-      <span v-if="mutual" class="badge bg-success position-absolute top-0 end-0 m-2">Mutual match</span>
+      <span v-if="score" class="th-match-pill">{{ score }}% match</span>
+      <span v-if="mutual" class="th-badge th-badge-mutual th-listing-mutual">Mutual match</span>
     </div>
 
-    <div class="card-body">
-      <div class="d-flex justify-content-between small text-uppercase text-secondary mb-1">
-        <span>{{ listing.category }}</span>
-        <span class="badge bg-light text-dark border">{{ listing.condition }}</span>
+    <div class="card-body th-listing-body">
+      <div class="th-listing-meta">
+        <span class="eyebrow">{{ listing.category }}</span>
+        <ConditionBadge :condition="listing.condition" />
       </div>
-      <h6 class="card-title mb-1">
-        <RouterLink :to="`/listings/${listing._id}`" class="stretched-link text-decoration-none text-dark">
-          {{ listing.title }}
-        </RouterLink>
-      </h6>
-      <p v-if="listing.lookingFor" class="card-text small text-secondary mb-1">
-        Looking for: {{ listing.lookingFor }}
+      <h3 class="th-listing-title">
+        <RouterLink :to="`/listings/${listing._id}`" class="stretched-link">{{ listing.title }}</RouterLink>
+      </h3>
+      <p v-if="listing.lookingFor" class="th-listing-wants">
+        Looking for: <b>{{ listing.lookingFor }}</b>
       </p>
-      <p v-if="listing.owner?.name" class="card-text small mb-0">by {{ listing.owner.name }}</p>
-      <StatusBadge v-if="showStatus" :status="listing.status" />
+      <div class="th-listing-owner">
+        <template v-if="listing.owner?.name">
+          <UserAvatar :name="listing.owner.name" size="sm" />
+          <span>by {{ listing.owner.name }}</span>
+        </template>
+        <StatusBadge v-if="showStatus" :status="listing.status" class="ms-auto" />
+      </div>
     </div>
 
     <!-- Parent pages put their own buttons here -->
-    <div v-if="$slots.default" class="card-footer bg-white position-relative z-1">
+    <div v-if="$slots.default" class="card-footer th-listing-foot position-relative z-1">
       <slot></slot>
     </div>
-  </div>
+  </article>
 </template>
-
-<style scoped>
-.listing-img {
-  height: 180px;
-  object-fit: cover;
-}
-</style>

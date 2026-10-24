@@ -1,7 +1,11 @@
 <script setup>
 import { computed } from 'vue'
 
+import AppIcon from './AppIcon.vue'
+
 const props = defineProps({
+  // Shown instead of "Other user"
+  otherName: { type: String, default: 'Other user' },
   checklist: Array,
   isProposer: Boolean,
   myConfirmed: Boolean,
@@ -25,45 +29,64 @@ const allMine = computed(() => myCount.value === props.checklist.length)
 </script>
 
 <template>
-  <div class="card">
-    <div class="card-header fw-semibold">Inspection checklist</div>
-    <div class="card-body">
-      <p class="small text-secondary">
-        Check each item at the meetup. The trade completes only when both of you tick everything and confirm.
-      </p>
-
-      <div class="small mb-1">You: {{ myCount }}/{{ checklist.length }}</div>
-      <div class="progress mb-2" role="progressbar" :aria-valuenow="myCount" :aria-valuemax="checklist.length">
-        <div class="progress-bar bg-success" :style="{ width: (myCount / checklist.length) * 100 + '%' }"></div>
+  <section class="card th-checklist" aria-labelledby="checklist-title">
+    <div class="th-card-head">
+      <span class="th-card-icon"><AppIcon name="check" /></span>
+      <div>
+        <h2 id="checklist-title">Inspection checklist</h2>
+        <p>Check each item at the meetup. The trade completes only when both of you tick everything and confirm.</p>
       </div>
-      <div class="small mb-1">Other user: {{ theirCount }}/{{ checklist.length }}</div>
-      <div class="progress mb-3" role="progressbar" :aria-valuenow="theirCount" :aria-valuemax="checklist.length">
-        <div class="progress-bar bg-info" :style="{ width: (theirCount / checklist.length) * 100 + '%' }"></div>
-      </div>
+    </div>
 
-      <ul class="list-group mb-3">
-        <li v-for="(item, index) in checklist" :key="item.text" class="list-group-item d-flex align-items-center">
+    <div class="th-check-progress">
+      <div class="th-progress-row th-progress-you">
+        <span>You</span>
+        <div class="progress" role="progressbar" :aria-valuenow="myCount" :aria-valuemax="checklist.length" aria-label="Your progress">
+          <div class="progress-bar" :style="{ width: (myCount / checklist.length) * 100 + '%' }"></div>
+        </div>
+        <span class="data">{{ myCount }}/{{ checklist.length }}</span>
+      </div>
+      <div class="th-progress-row th-progress-them">
+        <span>{{ otherName }}</span>
+        <div class="progress" role="progressbar" :aria-valuenow="theirCount" :aria-valuemax="checklist.length" :aria-label="`${otherName}'s progress`">
+          <div class="progress-bar" :style="{ width: (theirCount / checklist.length) * 100 + '%' }"></div>
+        </div>
+        <span class="data">{{ theirCount }}/{{ checklist.length }}</span>
+      </div>
+    </div>
+
+    <ul class="th-checks">
+      <li v-for="(item, index) in checklist" :key="item.text">
+        <label class="th-check" :for="`check-${index}`">
           <input
             :id="`check-${index}`"
-            class="form-check-input me-2"
+            class="form-check-input"
             type="checkbox"
             :checked="myTick(item)"
             :disabled="locked"
             @change="emit('toggle', index, $event.target.checked)"
           />
-          <label class="form-check-label flex-grow-1" :for="`check-${index}`">{{ item.text }}</label>
-          <span v-if="theirTick(item)" class="badge bg-info text-dark">Other user ✓</span>
-        </li>
-      </ul>
+          <span class="th-check-text">{{ item.text }}</span>
+          <span v-if="theirTick(item)" class="th-badge th-badge-them th-check-them">
+            <AppIcon name="check" :size="14" />{{ otherName }}
+          </span>
+        </label>
+      </li>
+    </ul>
 
-      <div v-if="!locked">
-        <button class="btn btn-success" :disabled="!allMine || myConfirmed" @click="emit('confirm')">
-          {{ myConfirmed ? 'You confirmed' : 'Confirm handover' }}
-        </button>
-        <span class="small text-secondary ms-2">
-          {{ theirConfirmed ? 'The other user has confirmed.' : 'Waiting for the other user to confirm.' }}
-        </span>
+    <div v-if="!locked" class="th-checklist-foot">
+      <button class="btn btn-primary" :disabled="!allMine || myConfirmed" @click="emit('confirm')">
+        <AppIcon name="check" />{{ myConfirmed ? 'You confirmed' : 'Confirm handover' }}
+      </button>
+      <span class="small th-muted">
+        {{ theirConfirmed ? `${otherName} has confirmed.` : `Waiting for ${otherName} to confirm.` }}
+        <template v-if="!allMine"> Tick every item to unlock.</template>
+      </span>
+    </div>
+    <div v-else-if="myConfirmed && theirConfirmed" class="th-checklist-foot">
+      <div class="alert alert-success mb-0 w-100" role="status">
+        <strong>Trade complete.</strong> Both of you confirmed the handover.
       </div>
     </div>
-  </div>
+  </section>
 </template>

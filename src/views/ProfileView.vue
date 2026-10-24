@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { errorMessage } from '@/lib/api'
 import { CATEGORIES } from '@/lib/constants'
+import UserAvatar from '@/components/UserAvatar.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const auth = useAuthStore()
 
@@ -37,55 +39,50 @@ async function save() {
 </script>
 
 <template>
-  <div class="row justify-content-center">
-    <div class="col-lg-7">
-      <h1 class="h4">{{ auth.user.name }}</h1>
-      <p class="text-secondary">{{ auth.user.email }}</p>
-
-      <div class="card card-body shadow-sm">
-        <h2 class="h5">What are you looking for?</h2>
-        <p class="small text-secondary">
-          Add categories or keywords (e.g. "film lens", "turntable"). We use these to find matches for you.
-        </p>
-
-        <form class="input-group mb-2" @submit.prevent="addWant()">
-          <input v-model="newWant" class="form-control" placeholder="Add a keyword" />
-          <button class="btn btn-outline-success" type="submit">Add</button>
-        </form>
-
-        <div class="mb-3">
-          <span class="small text-secondary me-1">Quick add:</span>
-          <button
-            v-for="c in CATEGORIES"
-            :key="c"
-            type="button"
-            class="btn btn-light border btn-sm me-1 mb-1"
-            @click="addWant(c)"
-          >
-            + {{ c }}
-          </button>
-        </div>
-
-        <div class="mb-3">
-          <p v-if="wants.length === 0" class="text-secondary small">Nothing added yet.</p>
-          <span v-for="(want, index) in wants" :key="want" class="badge rounded-pill bg-success me-1 mb-1 p-2">
-            {{ want }}
-            <button
-              type="button"
-              class="btn-close btn-close-white ms-1"
-              style="font-size: 0.6rem"
-              :aria-label="`Remove ${want}`"
-              @click="removeWant(index)"
-            ></button>
-          </span>
-        </div>
-
-        <div v-if="message" class="alert alert-success py-2">{{ message }}</div>
-        <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
-        <div>
-          <button class="btn btn-success" @click="save">Save</button>
-        </div>
+  <div class="th-narrow">
+    <div class="th-profile-head">
+      <UserAvatar :name="auth.user.name" you size="lg" />
+      <div>
+        <h1>{{ auth.user.name }}</h1>
+        <p>{{ auth.user.email }}</p>
       </div>
     </div>
+
+    <section class="card th-panel">
+      <h2>What are you looking for?</h2>
+      <p class="th-muted">
+        Add categories or keywords (e.g. "film lens", "turntable"). We use these to find matches for you.
+      </p>
+
+      <form class="th-search th-search-sm mb-3" @submit.prevent="addWant()">
+        <AppIcon name="search" />
+        <input v-model="newWant" placeholder="Add a keyword" aria-label="Add a keyword" />
+        <button class="btn btn-primary btn-sm" type="submit">Add</button>
+      </form>
+
+      <div class="mb-2"><span class="eyebrow th-muted">Quick add</span></div>
+      <div class="th-chips mb-4">
+        <button v-for="c in CATEGORIES" :key="c" type="button" class="th-chip" @click="addWant(c)">
+          <AppIcon name="plus" :size="16" />{{ c }}
+        </button>
+      </div>
+
+      <div class="mb-2"><span class="eyebrow th-muted">Your wants</span></div>
+      <div class="th-wants mb-4">
+        <p v-if="wants.length === 0" class="th-muted small mb-0">Nothing added yet.</p>
+        <span v-for="(want, index) in wants" :key="want" class="th-want">
+          {{ want }}
+          <button type="button" :aria-label="`Remove ${want}`" @click="removeWant(index)">
+            <AppIcon name="x" :size="14" />
+          </button>
+        </span>
+      </div>
+
+      <div v-if="message" class="alert alert-success" role="status">{{ message }}</div>
+      <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
+      <div>
+        <button class="btn btn-primary" @click="save">Save wants</button>
+      </div>
+    </section>
   </div>
 </template>

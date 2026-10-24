@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { errorMessage } from '@/lib/api'
+import logoMark from '@/assets/logo-mark.svg'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -29,12 +30,14 @@ async function login() {
 </script>
 
 <template>
-  <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm">
-        <div class="card-body p-4">
-          <h1 class="h4 mb-3">Log in</h1>
-          <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
+  <div class="th-auth">
+    <div>
+      <div class="card th-auth-card">
+        <div class="card-body">
+          <img :src="logoMark" width="48" height="48" alt="" class="mb-3" />
+          <h1 class="th-auth-title">Log in</h1>
+          <p class="th-muted mb-4">Welcome back. Your trades are waiting.</p>
+          <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
           <form @submit.prevent="login">
             <div class="mb-3">
               <label class="form-label" for="email">Email</label>
@@ -46,7 +49,7 @@ async function login() {
             </div>
             <button class="btn btn-success w-100" type="submit" :disabled="loading">Log in</button>
           </form>
-          <p class="small mt-3 mb-0">
+          <p class="small mt-4 mb-0 text-center">
             No account yet? <RouterLink to="/register">Sign up</RouterLink>
           </p>
         </div>

@@ -36,15 +36,21 @@ async function onFileChange(event) {
 
 <template>
   <div>
-    <input type="file" class="form-control" accept="image/*" :disabled="uploading" @change="onFileChange" />
+    <input type="file" class="form-control th-file" accept="image/*" :disabled="uploading" @change="onFileChange" />
     <div v-if="uploading" class="form-text">Uploading…</div>
-    <div v-if="error" class="text-danger small">{{ error }}</div>
-    <img v-if="showPreview && previewUrl" :src="previewUrl" alt="Uploaded photo" class="img-thumbnail mt-2 preview" />
+    <div v-if="error" class="th-field-error">{{ error }}</div>
+    <img v-if="showPreview && previewUrl" :src="previewUrl" alt="Uploaded photo" class="th-upload-preview mt-3" />
   </div>
 </template>
 
 <style scoped>
-.preview {
-  max-width: 240px;
+.th-upload-preview {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
 }
 </style>

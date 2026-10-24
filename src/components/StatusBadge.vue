@@ -3,22 +3,22 @@ import { computed } from 'vue'
 
 const props = defineProps({ status: String })
 
-// Bootstrap background colour for each listing or trade status
-const colours = {
-  available: 'bg-success',
-  reserved: 'bg-warning text-dark',
-  traded: 'bg-secondary',
-  pending: 'bg-info text-dark',
-  countered: 'bg-warning text-dark',
-  accepted: 'bg-primary',
-  completed: 'bg-success',
-  rejected: 'bg-danger',
-  cancelled: 'bg-secondary',
+// Design-system badge style and wording for each listing or trade status
+const styles = {
+  available: ['success', 'Available'],
+  reserved: ['neutral', 'Reserved'],
+  traded: ['muted', 'Traded'],
+  pending: ['neutral', 'Pending'],
+  countered: ['them', 'Countered'],
+  accepted: ['them', 'Accepted'],
+  completed: ['success', 'Completed'],
+  rejected: ['danger', 'Declined'],
+  cancelled: ['muted', 'Cancelled'],
 }
 
-const badgeClass = computed(() => colours[props.status] || 'bg-light text-dark')
+const style = computed(() => styles[props.status] || ['neutral', props.status])
 </script>
 
 <template>
-  <span class="badge text-capitalize" :class="badgeClass">{{ status }}</span>
+  <span class="th-badge" :class="`th-badge-${style[0]}`">{{ style[1] }}</span>
 </template>

@@ -5,13 +5,8 @@ import NavBar from './components/NavBar.vue'
 
 <template>
   <NavBar />
-  <main class="container py-4">
+  <main class="container th-main">
     <RouterView />
   </main>
 </template>
 
-<style>
-body {
-  background-color: #f4f5f0;
-}
-</style>

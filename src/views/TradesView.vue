@@ -4,6 +4,8 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
 import StatusBadge from '@/components/StatusBadge.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import { formatMeetup, placeName } from '@/lib/format'
 
 const auth = useAuthStore()
 
@@ -34,6 +36,15 @@ function otherUser(trade) {
   return trade.proposer._id === auth.user._id ? trade.receiver.name : trade.proposer.name
 }
 
+// Items on each side, for the thumbnails
+function sides(trade) {
+  const iAmProposer = trade.proposer._id === auth.user._id
+  return {
+    mine: iAmProposer ? trade.offeredListings : trade.requestedListings,
+    theirs: iAmProposer ? trade.requestedListings : trade.offeredListings,
+  }
+}
+
 // My items and their items, whichever side I'm on
 function summary(trade) {
   const iAmProposer = trade.proposer._id === auth.user._id
@@ -54,33 +65,58 @@ onMounted(async () => {
 </script>
 
 <template>
-  <h1 class="h4 mb-3">My trades</h1>
+  <div class="th-page-head">
+    <div>
+      <h1>My trades</h1>
+      <p>Proposals, meetups and everything you've swapped.</p>
+    </div>
+  </div>
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-  <ul class="nav nav-pills mb-3">
-    <li v-for="t in tabs" :key="t.key" class="nav-item">
-      <button class="nav-link" :class="{ active: tab === t.key }" @click="tab = t.key">
-        {{ t.label }}
-        <span v-if="grouped[t.key].length" class="badge bg-secondary ms-1">{{ grouped[t.key].length }}</span>
-      </button>
-    </li>
-  </ul>
-
-  <p v-if="grouped[tab].length === 0" class="text-secondary">Nothing here.</p>
-
-  <div class="list-group">
-    <RouterLink
-      v-for="trade in grouped[tab]"
-      :key="trade._id"
-      :to="`/trades/${trade._id}`"
-      class="list-group-item list-group-item-action"
+  <div class="th-chips mb-4" role="group" aria-label="Trade lists">
+    <button
+      v-for="t in tabs"
+      :key="t.key"
+      type="button"
+      class="th-chip"
+      :aria-pressed="tab === t.key ? 'true' : 'false'"
+      @click="tab = t.key"
     >
-      <div class="d-flex justify-content-between">
-        <strong>Trading with {{ otherUser(trade) }}</strong>
-        <StatusBadge :status="trade.status" />
-      </div>
-      <div class="small text-secondary">{{ summary(trade) }}</div>
-      <div v-if="trade.meetup?.name" class="small">Meetup: {{ trade.meetup.name }}, {{ trade.meetup.date }} {{ trade.meetup.time }}</div>
+      {{ t.label }}
+      <span v-if="grouped[t.key].length" class="th-count">{{ grouped[t.key].length }}</span>
+    </button>
+  </div>
+
+  <div v-if="grouped[tab].length === 0" class="th-empty">
+    <strong>Nothing here</strong>
+    <p v-if="tab === 'action'">No one is waiting on you. Find something on Discover to offer a trade.</p>
+    <p v-else>Trades will show up here as they move along.</p>
+  </div>
+
+  <div class="th-trade-list">
+    <RouterLink v-for="trade in grouped[tab]" :key="trade._id" :to="`/trades/${trade._id}`" class="card th-trade-row">
+      <span class="th-trade-thumbs" aria-hidden="true">
+        <span class="th-thumb th-thumb-you">
+          <img v-if="sides(trade).mine[0]?.imageUrl" :src="sides(trade).mine[0].imageUrl" alt="" />
+          <AppIcon v-else name="image" :size="18" />
+        </span>
+        <span class="th-thumb-swap"><AppIcon name="swap" :size="14" /></span>
+        <span class="th-thumb th-thumb-them">
+          <img v-if="sides(trade).theirs[0]?.imageUrl" :src="sides(trade).theirs[0].imageUrl" alt="" />
+          <AppIcon v-else name="image" :size="18" />
+        </span>
+      </span>
+      <span class="th-trade-row-body">
+        <span class="th-trade-row-top">
+          <b>Trading with {{ otherUser(trade) }}</b>
+          <StatusBadge :status="trade.status" />
+        </span>
+        <span class="th-trade-row-summary">{{ summary(trade) }}</span>
+        <span v-if="trade.meetup?.name" class="th-trade-row-meet">
+          <AppIcon name="pin" :size="16" />{{ placeName(trade.meetup.name) }} · {{ formatMeetup(trade.meetup.date, trade.meetup.time) }}
+        </span>
+      </span>
+      <AppIcon name="chevron" class="th-trade-row-chev d-none d-sm-block" />
     </RouterLink>
   </div>
 </template>

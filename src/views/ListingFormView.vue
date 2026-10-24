@@ -76,56 +76,67 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="row justify-content-center">
-    <div class="col-lg-7">
-      <h1 class="h4 mb-3">{{ isEdit ? 'Edit listing' : 'List an item' }}</h1>
-      <div v-if="error" class="alert alert-danger">{{ error }}</div>
-
-      <form v-if="loaded" class="card card-body shadow-sm" @submit.prevent="save">
-        <div class="mb-3">
-          <label class="form-label" for="title">Title</label>
-          <input id="title" v-model.trim="form.title" class="form-control" placeholder="e.g. Canon AE-1 Program" required />
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-sm-6">
-            <label class="form-label" for="category">Category</label>
-            <select id="category" v-model="form.category" class="form-select" required>
-              <option disabled value="">Choose…</option>
-              <option v-for="c in CATEGORIES" :key="c">{{ c }}</option>
-            </select>
-          </div>
-          <div class="col-sm-6">
-            <label class="form-label" for="condition">Condition</label>
-            <select id="condition" v-model="form.condition" class="form-select" required>
-              <option disabled value="">Choose…</option>
-              <option v-for="c in CONDITIONS" :key="c">{{ c }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="description">Description</label>
-          <textarea id="description" v-model="form.description" class="form-control" rows="4" required></textarea>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="looking-for">Looking for (optional)</label>
-          <input id="looking-for" v-model.trim="form.lookingFor" class="form-control" placeholder="e.g. film lenses, turntable" />
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Photo</label>
-          <ImageUploader folder="listings" :initial-url="form.imageUrl" @uploaded="onUploaded" />
-        </div>
-
-        <div>
-          <button class="btn btn-success" type="submit" :disabled="saving">
-            {{ isEdit ? 'Save changes' : 'Create listing' }}
-          </button>
-          <button class="btn btn-link" type="button" @click="router.back()">Cancel</button>
-        </div>
-      </form>
+  <div class="th-narrow">
+    <div class="th-page-head">
+      <div>
+        <h1>{{ isEdit ? 'Edit listing' : 'List an item' }}</h1>
+        <p>Good photos and an honest condition get you better matches.</p>
+      </div>
     </div>
+    <div v-if="error" class="alert alert-danger">{{ error }}</div>
+
+    <form v-if="loaded" class="card th-panel" @submit.prevent="save">
+      <div class="mb-4">
+        <label class="form-label">Photo</label>
+        <ImageUploader folder="listings" :initial-url="form.imageUrl" @uploaded="onUploaded" />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="title">Title</label>
+        <input id="title" v-model.trim="form.title" class="form-control" placeholder="e.g. Canon AE-1 Program" required />
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label" for="category">Category</label>
+          <select id="category" v-model="form.category" class="form-select" required>
+            <option disabled value="">Choose…</option>
+            <option v-for="c in CATEGORIES" :key="c">{{ c }}</option>
+          </select>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label" for="condition">Condition</label>
+          <select id="condition" v-model="form.condition" class="form-select" required>
+            <option disabled value="">Choose…</option>
+            <option v-for="c in CONDITIONS" :key="c">{{ c }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="description">Description</label>
+        <textarea
+          id="description"
+          v-model="form.description"
+          class="form-control"
+          rows="4"
+          placeholder="What it is, how old, anything that's worn or missing."
+          required
+        ></textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label" for="looking-for">What would you take for it? <span class="th-muted fw-normal">(optional)</span></label>
+        <input id="looking-for" v-model.trim="form.lookingFor" class="form-control" placeholder="e.g. film lenses, turntable" />
+        <div class="form-text">We use this to match you with people who have it.</div>
+      </div>
+
+      <div class="th-form-actions">
+        <button class="btn btn-link" type="button" @click="router.back()">Cancel</button>
+        <button class="btn btn-primary" type="submit" :disabled="saving">
+          {{ isEdit ? 'Save changes' : 'Create listing' }}
+        </button>
+      </div>
+    </form>
   </div>
 </template>

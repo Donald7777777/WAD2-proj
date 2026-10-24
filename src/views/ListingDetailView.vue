@@ -4,6 +4,9 @@ import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
 import StatusBadge from '@/components/StatusBadge.vue'
+import ConditionBadge from '@/components/ConditionBadge.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -24,45 +27,55 @@ onMounted(async () => {
 </script>
 
 <template>
+  <RouterLink to="/" class="th-back"><AppIcon name="back" :size="18" />Discover</RouterLink>
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-  <div v-if="listing" class="row g-4">
-    <div class="col-md-6">
-      <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" class="img-fluid rounded shadow-sm w-100" />
-      <div v-else class="bg-secondary-subtle rounded d-flex align-items-center justify-content-center placeholder-img">
-        <span class="text-secondary">No photo</span>
+  <div v-if="listing" class="th-detail">
+    <div class="th-detail-media">
+      <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" />
+      <div v-else class="th-listing-noimg">
+        <AppIcon name="image" :size="36" />
+        <span>No photo yet</span>
       </div>
     </div>
 
-    <div class="col-md-6">
-      <p class="text-uppercase small text-secondary mb-1">{{ listing.category }}</p>
-      <h1 class="h3">{{ listing.title }}</h1>
-      <p>
-        <span class="badge bg-light text-dark border me-1">{{ listing.condition }}</span>
+    <div class="th-detail-info">
+      <span class="eyebrow th-muted">{{ listing.category }}</span>
+      <h1 class="th-detail-title">{{ listing.title }}</h1>
+      <div class="d-flex flex-wrap gap-2">
+        <ConditionBadge :condition="listing.condition" />
         <StatusBadge :status="listing.status" />
-      </p>
-      <p style="white-space: pre-line">{{ listing.description }}</p>
-      <p v-if="listing.lookingFor"><strong>Looking for:</strong> {{ listing.lookingFor }}</p>
-      <p class="text-secondary small">Listed by {{ listing.owner.name }}</p>
+      </div>
 
-      <RouterLink v-if="isOwner" :to="`/listings/${listing._id}/edit`" class="btn btn-outline-dark">
-        Edit listing
-      </RouterLink>
-      <template v-else-if="listing.status === 'available'">
-        <RouterLink v-if="auth.user" :to="`/listings/${listing._id}/propose`" class="btn btn-success btn-lg">
-          Offer a trade
+      <p class="th-detail-desc">{{ listing.description }}</p>
+
+      <div v-if="listing.lookingFor" class="th-wants-box">
+        <span class="eyebrow">{{ isOwner ? 'You are' : `${listing.owner.name} is` }} looking for</span>
+        <p>{{ listing.lookingFor }}</p>
+      </div>
+
+      <div class="th-owner-row">
+        <UserAvatar :name="listing.owner.name" :you="isOwner" />
+        <div>
+          <b>{{ isOwner ? 'Your listing' : listing.owner.name }}</b>
+          <span>Listed by {{ listing.owner.name }}</span>
+        </div>
+      </div>
+
+      <div class="th-detail-cta">
+        <RouterLink v-if="isOwner" :to="`/listings/${listing._id}/edit`" class="btn btn-outline-dark btn-lg">
+          <AppIcon name="edit" />Edit listing
         </RouterLink>
-        <RouterLink v-else :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-success">
-          Log in to offer a trade
-        </RouterLink>
-      </template>
-      <p v-else class="text-secondary">This item is no longer available.</p>
+        <template v-else-if="listing.status === 'available'">
+          <RouterLink v-if="auth.user" :to="`/listings/${listing._id}/propose`" class="btn btn-offer btn-lg">
+            <AppIcon name="swap" />Offer a trade
+          </RouterLink>
+          <RouterLink v-else :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-offer btn-lg">
+            Log in to offer a trade
+          </RouterLink>
+        </template>
+        <p v-else class="th-muted mb-0">This item is no longer available.</p>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.placeholder-img {
-  height: 320px;
-}
-</style>

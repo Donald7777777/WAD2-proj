@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import { deleteImage } from '@/lib/storage'
 import ListingCard from '@/components/ListingCard.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const listings = ref([])
 const error = ref('')
@@ -35,23 +36,34 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">My listings</h1>
-    <RouterLink to="/listings/new" class="btn btn-success">+ New listing</RouterLink>
+  <div class="th-page-head">
+    <div>
+      <h1>My listings</h1>
+      <p>{{ listings.length }} item{{ listings.length === 1 ? '' : 's' }} you've put up for trade.</p>
+    </div>
+    <RouterLink to="/listings/new" class="btn btn-offer"><AppIcon name="plus" />New listing</RouterLink>
   </div>
 
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
-  <p v-if="listings.length === 0" class="text-secondary">You haven't listed anything yet.</p>
+  <div v-if="listings.length === 0" class="th-empty">
+    <strong>You haven't listed anything yet</strong>
+    <p>Add something you no longer use. It takes about two minutes.</p>
+    <RouterLink to="/listings/new" class="btn btn-primary btn-sm mt-2">List an item</RouterLink>
+  </div>
 
-  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3">
-    <div v-for="listing in listings" :key="listing._id" class="col">
+  <div class="th-grid">
+    <div v-for="listing in listings" :key="listing._id">
       <ListingCard :listing="listing" show-status>
         <!-- Buttons passed into the card's slot -->
         <template v-if="listing.status === 'available'">
-          <RouterLink :to="`/listings/${listing._id}/edit`" class="btn btn-sm btn-outline-dark me-2">Edit</RouterLink>
-          <button class="btn btn-sm btn-outline-danger" @click="remove(listing)">Delete</button>
+          <RouterLink :to="`/listings/${listing._id}/edit`" class="btn btn-sm btn-outline-dark">
+            <AppIcon name="edit" :size="16" />Edit
+          </RouterLink>
+          <button class="btn btn-sm btn-outline-danger" @click="remove(listing)">
+            <AppIcon name="trash" :size="16" />Delete
+          </button>
         </template>
-        <small v-else class="text-secondary">Part of a trade</small>
+        <small v-else class="th-muted">Part of a trade</small>
       </ListingCard>
     </div>
   </div>

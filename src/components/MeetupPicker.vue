@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import AppIcon from './AppIcon.vue'
+import { formatMeetup, placeName } from '@/lib/format'
 
 const props = defineProps({
   // The meetup already saved on the trade (may be empty)
@@ -78,72 +80,76 @@ function save() {
 </script>
 
 <template>
-  <div class="card">
-    <div class="card-header fw-semibold">Meetup point</div>
-    <div class="card-body">
-      <!-- Saved meetup -->
-      <div v-if="!editing && meetup?.name">
-        <h6 class="mb-1">{{ meetup.name }}</h6>
-        <p class="small text-secondary mb-1">{{ meetup.address }}</p>
-        <p class="mb-2"><strong>{{ meetup.date }}</strong> at <strong>{{ meetup.time }}</strong></p>
-        <img :src="mapFor(meetup.lat, meetup.lng)" alt="Map of meetup point" class="img-fluid rounded border" />
-        <button v-if="canEdit" class="btn btn-outline-secondary btn-sm mt-2" @click="editing = true">
-          Change meetup
+  <section class="card th-meetup" aria-labelledby="meetup-title">
+    <div class="th-card-head">
+      <span class="th-card-icon"><AppIcon name="pin" /></span>
+      <div>
+        <h2 id="meetup-title">Meetup point</h2>
+        <p>Meet somewhere busy and public.</p>
+      </div>
+    </div>
+
+    <!-- Saved meetup -->
+    <div v-if="!editing && meetup?.name" class="th-meetup-saved">
+      <img :src="mapFor(meetup.lat, meetup.lng)" alt="Map of meetup point" class="th-map" />
+      <div class="th-meetup-info">
+        <h3 class="th-meetup-place">{{ placeName(meetup.name) }}</h3>
+        <p class="th-muted small mb-2">{{ placeName(meetup.address) }}</p>
+        <span class="th-when"><AppIcon name="clock" :size="16" />{{ formatMeetup(meetup.date, meetup.time) }}</span>
+      </div>
+      <button v-if="canEdit" class="btn btn-outline-dark btn-sm align-self-start" @click="editing = true">
+        Change meetup
+      </button>
+    </div>
+
+    <!-- Choosing a meetup -->
+    <div v-else-if="canEdit" class="th-meetup-edit">
+      <form class="th-search th-search-sm" role="search" @submit.prevent="search()">
+        <AppIcon name="search" />
+        <input v-model="searchText" placeholder="Search e.g. Bishan MRT" aria-label="Search for a meetup place" />
+        <button class="btn btn-primary btn-sm" type="submit" :disabled="searching">
+          {{ searching ? 'Searching…' : 'Search' }}
+        </button>
+      </form>
+      <div class="th-chips">
+        <button v-for="s in suggestions" :key="s" type="button" class="th-chip" @click="search(s)">{{ s }}</button>
+      </div>
+
+      <div v-if="error" class="th-field-error" role="alert">{{ error }}</div>
+
+      <div v-if="results.length" class="list-group th-results">
+        <button
+          v-for="result in results"
+          :key="result.ADDRESS"
+          type="button"
+          class="list-group-item list-group-item-action"
+          @click="choose(result)"
+        >
+          <AppIcon name="pin" :size="18" class="th-muted" />
+          <span>
+            <span class="d-block fw-semibold small">{{ placeName(result.SEARCHVAL) }}</span>
+            <span class="d-block small th-muted">{{ placeName(result.ADDRESS) }}</span>
+          </span>
         </button>
       </div>
 
-      <!-- Choosing a meetup -->
-      <div v-else-if="canEdit">
-        <p class="small text-secondary">Choose a busy public place, like an MRT station or mall.</p>
-        <form class="input-group mb-2" @submit.prevent="search()">
-          <input v-model="searchText" class="form-control" placeholder="Search e.g. Bishan MRT" />
-          <button class="btn btn-outline-success" type="submit" :disabled="searching">Search</button>
-        </form>
-        <div class="mb-2">
-          <button
-            v-for="s in suggestions"
-            :key="s"
-            type="button"
-            class="btn btn-light btn-sm border me-1 mb-1"
-            @click="search(s)"
-          >
-            {{ s }}
-          </button>
-        </div>
-
-        <div v-if="error" class="text-danger small mb-2">{{ error }}</div>
-
-        <div v-if="results.length" class="list-group mb-2">
-          <button
-            v-for="result in results"
-            :key="result.ADDRESS"
-            type="button"
-            class="list-group-item list-group-item-action"
-            @click="choose(result)"
-          >
-            <div class="fw-semibold small">{{ result.SEARCHVAL }}</div>
-            <div class="small text-secondary">{{ result.ADDRESS }}</div>
-          </button>
-        </div>
-
-        <div v-if="place">
-          <p class="mb-1"><strong>{{ place.name }}</strong></p>
-          <img :src="mapUrl" alt="Map of chosen place" class="img-fluid rounded border mb-2" />
-          <div class="row g-2">
-            <div class="col-sm-6">
-              <label class="form-label small" for="meetup-date">Date</label>
-              <input id="meetup-date" v-model="date" type="date" class="form-control" :min="today" />
-            </div>
-            <div class="col-sm-6">
-              <label class="form-label small" for="meetup-time">Time</label>
-              <input id="meetup-time" v-model="time" type="time" class="form-control" />
-            </div>
+      <div v-if="place" class="th-meetup-chosen">
+        <img :src="mapUrl" alt="Map of chosen place" class="th-map" />
+        <h3 class="th-meetup-place">{{ placeName(place.name) }}</h3>
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label" for="meetup-date">Date</label>
+            <input id="meetup-date" v-model="date" type="date" class="form-control" :min="today" />
           </div>
-          <button class="btn btn-success mt-2" @click="save">Save meetup</button>
+          <div class="col-sm-6">
+            <label class="form-label" for="meetup-time">Time</label>
+            <input id="meetup-time" v-model="time" type="time" class="form-control" />
+          </div>
         </div>
+        <button class="btn btn-primary mt-3" @click="save">Save meetup</button>
       </div>
-
-      <p v-else class="text-secondary small mb-0">No meetup was set.</p>
     </div>
-  </div>
+
+    <p v-else class="th-muted small mb-0 px-4 pb-4">No meetup was set.</p>
+  </section>
 </template>

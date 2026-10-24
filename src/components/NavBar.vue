@@ -1,6 +1,9 @@
 <script setup>
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AppIcon from './AppIcon.vue'
+import UserAvatar from './UserAvatar.vue'
+import logoMark from '@/assets/logo-mark.svg'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -12,51 +15,74 @@ async function logout() {
 </script>
 
 <template>
-  <nav class="navbar navbar-expand-md navbar-dark bg-dark">
-    <div class="container">
-      <RouterLink class="navbar-brand fw-bold" to="/">
-        Trade<span class="text-success">Happy</span>
+  <!-- Top bar: every screen size -->
+  <header class="th-topbar">
+    <div class="container th-topbar-inner">
+      <RouterLink class="th-logo" to="/" aria-label="TradeHappy home">
+        <img :src="logoMark" width="32" height="32" alt="" />
+        <span class="th-logo-word">Trade<em>Happy</em></span>
       </RouterLink>
 
-      <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#mainNav"
-        aria-controls="mainNav"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
-      >
-        <span class="navbar-toggler-icon"></span>
-      </button>
+      <!-- Desktop links (the mobile tab bar below covers these on small screens) -->
+      <nav class="th-topnav d-none d-lg-flex" aria-label="Main">
+        <RouterLink to="/" class="th-topnav-link" exact-active-class="is-active">Discover</RouterLink>
+        <template v-if="auth.user">
+          <RouterLink to="/my-listings" class="th-topnav-link" active-class="is-active">My listings</RouterLink>
+          <RouterLink to="/trades" class="th-topnav-link" active-class="is-active">My trades</RouterLink>
+        </template>
+      </nav>
 
-      <div id="mainNav" class="collapse navbar-collapse">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item"><RouterLink class="nav-link" to="/">Discover</RouterLink></li>
-          <template v-if="auth.user">
-            <li class="nav-item"><RouterLink class="nav-link" to="/my-listings">My listings</RouterLink></li>
-            <li class="nav-item"><RouterLink class="nav-link" to="/trades">My trades</RouterLink></li>
-          </template>
-        </ul>
+      <div class="th-topbar-actions">
+        <template v-if="auth.user">
+          <RouterLink class="btn btn-offer btn-sm d-none d-lg-inline-flex" to="/listings/new">
+            <AppIcon name="plus" :size="16" />List an item
+          </RouterLink>
 
-        <ul class="navbar-nav align-items-md-center">
-          <template v-if="auth.user">
-            <li class="nav-item">
-              <RouterLink class="btn btn-success btn-sm me-md-2 my-2 my-md-0" to="/listings/new">
-                + New listing
-              </RouterLink>
-            </li>
-            <li class="nav-item"><RouterLink class="nav-link" to="/profile">{{ auth.user.name }}</RouterLink></li>
-            <li class="nav-item">
-              <button class="btn btn-link nav-link" @click="logout">Log out</button>
-            </li>
-          </template>
-          <template v-else>
-            <li class="nav-item"><RouterLink class="nav-link" to="/login">Log in</RouterLink></li>
-            <li class="nav-item"><RouterLink class="nav-link" to="/register">Sign up</RouterLink></li>
-          </template>
-        </ul>
+          <div class="dropdown">
+            <button
+              class="th-account-btn"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              :aria-label="`Account menu for ${auth.user.name}`"
+            >
+              <UserAvatar :name="auth.user.name" you />
+              <span class="d-none d-lg-inline">{{ auth.user.name }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end th-menu">
+              <li><RouterLink class="dropdown-item" to="/profile"><AppIcon name="user" :size="18" />Profile and wants</RouterLink></li>
+              <li><RouterLink class="dropdown-item" to="/my-listings"><AppIcon name="box" :size="18" />My listings</RouterLink></li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <button class="dropdown-item" type="button" @click="logout"><AppIcon name="logout" :size="18" />Log out</button>
+              </li>
+            </ul>
+          </div>
+        </template>
+        <template v-else>
+          <RouterLink class="btn btn-ghost btn-sm" to="/login">Log in</RouterLink>
+          <RouterLink class="btn btn-primary btn-sm" to="/register">Sign up</RouterLink>
+        </template>
       </div>
     </div>
+  </header>
+
+  <!-- Bottom tab bar: phones and tablets, logged-in users -->
+  <nav v-if="auth.user" class="th-tabbar d-lg-none" aria-label="Main">
+    <RouterLink to="/" class="th-tab" exact-active-class="is-active">
+      <AppIcon name="discover" />Discover
+    </RouterLink>
+    <RouterLink to="/trades" class="th-tab" active-class="is-active">
+      <AppIcon name="swap" />Trades
+    </RouterLink>
+    <RouterLink to="/listings/new" class="th-tab th-tab-new" aria-label="List an item">
+      <span class="th-tab-new-btn"><AppIcon name="plus" /></span>List
+    </RouterLink>
+    <RouterLink to="/my-listings" class="th-tab" active-class="is-active">
+      <AppIcon name="box" />Listings
+    </RouterLink>
+    <RouterLink to="/profile" class="th-tab" active-class="is-active">
+      <AppIcon name="user" />Profile
+    </RouterLink>
   </nav>
 </template>
