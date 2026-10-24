@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
-// Initials in a circle. `you` tints it persimmon (your side); everyone else is cobalt (their side).
+// Initials in a circle. `you` tints it lime (your side); everyone else is lagoon (their side).
 const props = defineProps({
   name: { type: String, default: '' },
   you: Boolean,

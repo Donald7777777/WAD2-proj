@@ -18,10 +18,10 @@
   --bs-border-radius-sm: var(--radius-sm);
   --bs-border-radius-lg: var(--radius-lg);
   --bs-border-radius-pill: var(--radius-pill);
-  --bs-link-color: var(--cobalt);
-  --bs-link-color-rgb: 45, 85, 200;
+  --bs-link-color: var(--lagoon);
+  --bs-link-color-rgb: 21, 108, 116;
   --bs-link-hover-color: var(--ink);
-  --bs-link-hover-color-rgb: 30, 26, 22;
+  --bs-link-hover-color-rgb: 16, 48, 42;
   --bs-focus-ring-color: transparent;
 }
 
@@ -98,8 +98,8 @@ a { text-underline-offset: 3px; }
   --bs-btn-bg: var(--ink);
   --bs-btn-border-color: var(--ink);
   --bs-btn-hover-color: var(--on-ink);
-  --bs-btn-hover-bg: #3a332b;
-  --bs-btn-hover-border-color: #3a332b;
+  --bs-btn-hover-bg: #1d4a3f;
+  --bs-btn-hover-border-color: #1d4a3f;
   --bs-btn-active-color: var(--on-ink);
   --bs-btn-active-bg: var(--ink);
   --bs-btn-active-border-color: var(--ink);
@@ -117,15 +117,15 @@ a { text-underline-offset: 3px; }
 
 /* Offer: your side, starts a trade */
 .btn-offer {
-  --bs-btn-color: var(--on-persimmon);
-  --bs-btn-bg: var(--persimmon);
-  --bs-btn-border-color: var(--persimmon);
-  --bs-btn-hover-color: var(--on-persimmon);
-  --bs-btn-hover-bg: #a8340f;
-  --bs-btn-hover-border-color: #a8340f;
-  --bs-btn-active-color: var(--on-persimmon);
-  --bs-btn-active-bg: var(--persimmon);
-  --bs-btn-active-border-color: var(--persimmon);
+  --bs-btn-color: var(--on-lime);
+  --bs-btn-bg: var(--lime);
+  --bs-btn-border-color: var(--lime);
+  --bs-btn-hover-color: var(--on-lime);
+  --bs-btn-hover-bg: #b6e052;
+  --bs-btn-hover-border-color: #b6e052;
+  --bs-btn-active-color: var(--on-lime);
+  --bs-btn-active-bg: var(--lime);
+  --bs-btn-active-border-color: var(--lime);
   --bs-btn-disabled-color: var(--ink-muted);
   --bs-btn-disabled-bg: var(--paper-sunk);
   --bs-btn-disabled-border-color: var(--line);
@@ -243,8 +243,8 @@ a { text-underline-offset: 3px; }
   background-color: var(--paper-raised);
 }
 .form-check-input:checked {
-  background-color: var(--teal);
-  border-color: var(--teal);
+  background-color: var(--emerald);
+  border-color: var(--emerald);
 }
 .input-group > .form-control { border-radius: var(--radius-pill) 0 0 var(--radius-pill); padding-left: var(--space-4); }
 .input-group > .btn { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; }
@@ -267,9 +267,9 @@ a { text-underline-offset: 3px; }
   font-size: 14px;
 }
 .alert-danger { --bs-alert-bg: var(--brick-soft); --bs-alert-color: var(--ink); border-left: 0; }
-.alert-success { --bs-alert-bg: var(--teal-soft); --bs-alert-color: var(--ink); }
-.alert-info { --bs-alert-bg: var(--cobalt-soft); --bs-alert-color: var(--ink); }
-.alert-warning { --bs-alert-bg: var(--butter-soft); --bs-alert-color: var(--ink); }
+.alert-success { --bs-alert-bg: var(--emerald-soft); --bs-alert-color: var(--ink); }
+.alert-info { --bs-alert-bg: var(--lagoon-soft); --bs-alert-color: var(--ink); }
+.alert-warning { --bs-alert-bg: var(--mint-soft); --bs-alert-color: var(--ink); }
 .alert-light { --bs-alert-bg: var(--paper-sunk); --bs-alert-color: var(--ink-muted); }
 
 .progress {

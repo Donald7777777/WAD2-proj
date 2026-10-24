@@ -6,7 +6,7 @@ import ConditionBadge from './ConditionBadge.vue'
 defineProps({
   listings: Array,
   selectedIds: Array,
-  // Which side these items are on: 'you' (persimmon) or 'them' (cobalt)
+  // Which side these items are on: 'you' (lime) or 'them' (lagoon)
   side: { type: String, default: 'you' },
 })
 const emit = defineEmits(['toggle'])

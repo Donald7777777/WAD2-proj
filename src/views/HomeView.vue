@@ -58,7 +58,7 @@ onMounted(() => {
   <section class="th-hero">
     <div class="th-hero-copy">
       <span class="eyebrow th-hero-eyebrow">Swap, don't shop</span>
-      <h1 class="th-hero-title">Swap what you have for what you want.</h1>
+      <h1 class="th-hero-title">Swap what you have for what you <em>want.</em></h1>
       <p class="th-hero-lead">
         List things you no longer use. We match you with people nearby who have what you're after, and want what
         you've got.

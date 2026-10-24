@@ -1,33 +1,37 @@
 /* TradeHappy design tokens.
  * Source of truth: the TradeHappy design system (tokens.json). Change values there first,
- * then copy them here. Never hard-code a colour or size in a component; use these variables. */
+ * then copy them here. Never hard-code a colour or size in a component; use these variables.
+ * Palette: forest + lime (brand), lagoon sea-teal (the other trader), mint (matches). */
 
 :root,
 [data-theme="light"] {
-  --paper: #FBF6EE;
+  --paper: #F4F5EF;
   --paper-raised: #FFFFFF;
-  --paper-sunk: #F3ECE1;
-  --line: #E6DCCD;
-  --line-strong: #8C7E6E;
-  --ink: #1E1A16;
-  --ink-muted: #665A4D;
-  --on-ink: #FBF6EE;
-  --persimmon: #C03C17;
-  --on-persimmon: #FFFFFF;
-  --persimmon-soft: #FFEADF;
-  --cobalt: #2D55C8;
-  --on-cobalt: #FFFFFF;
-  --cobalt-soft: #E2E9FF;
-  --butter: #F2C230;
-  --on-butter: #1E1A16;
-  --butter-soft: #FFF3C7;
-  --teal: #0B7366;
-  --teal-soft: #D9F2EE;
+  --paper-sunk: #E9ECE3;
+  --line: #DCE1D6;
+  --line-strong: #7A877E;
+  --ink: #10302A;
+  --ink-muted: #55665E;
+  --on-ink: #F4F5EF;
+  --forest: #12352D;
+  --on-forest: #F4F5EF;
+  --lime: #C8F26A;
+  --on-lime: #10302A;
+  --lime-soft: #ECF7D2;
+  --lime-ink: #466A0E;
+  --lagoon: #156C74;
+  --on-lagoon: #FFFFFF;
+  --lagoon-soft: #DCEEEF;
+  --mint: #7ED6B3;
+  --on-mint: #10302A;
+  --mint-soft: #DDF3EA;
+  --emerald: #1C7350;
+  --emerald-soft: #E3F4EA;
   --brick: #B42318;
   --brick-soft: #FDE3E0;
-  --focus: #2D55C8;
-  --shadow-card: 0 1px 0 rgba(30,26,22,0.05), 0 8px 24px -14px rgba(30,26,22,0.22);
-  --shadow-pop: 0 2px 4px rgba(30,26,22,0.06), 0 20px 40px -16px rgba(30,26,22,0.30);
+  --focus: #156C74;
+  --shadow-card: 0 1px 0 rgba(16,48,42,0.05), 0 8px 24px -14px rgba(16,48,42,0.22);
+  --shadow-pop: 0 2px 4px rgba(16,48,42,0.06), 0 20px 40px -16px rgba(16,48,42,0.30);
 
   --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --font-sans: "Figtree", "Helvetica Neue", system-ui, sans-serif;
@@ -50,30 +54,33 @@
 
 /* Dark theme: set data-theme="dark" on <html>. */
 [data-theme="dark"] {
-  --paper: #15120F;
-  --paper-raised: #201C18;
-  --paper-sunk: #0D0B09;
-  --line: #38312A;
-  --line-strong: #857767;
-  --ink: #F4EEE5;
-  --ink-muted: #B3A696;
-  --on-ink: #15120F;
-  --persimmon: #FF7E54;
-  --on-persimmon: #15120F;
-  --persimmon-soft: #3E1B0F;
-  --cobalt: #86A2FF;
-  --on-cobalt: #15120F;
-  --cobalt-soft: #18244D;
-  --butter: #F2C230;
-  --on-butter: #15120F;
-  --butter-soft: #3A3010;
-  --teal: #4FD1BE;
-  --teal-soft: #0E302B;
+  --paper: #0D1916;
+  --paper-raised: #15241F;
+  --paper-sunk: #09120F;
+  --line: #26382F;
+  --line-strong: #6F8379;
+  --ink: #EEF3EC;
+  --ink-muted: #A6B6AD;
+  --on-ink: #0D1916;
+  --forest: #12352D;
+  --on-forest: #F4F5EF;
+  --lime: #C8F26A;
+  --on-lime: #10302A;
+  --lime-soft: #24331A;
+  --lime-ink: #C8F26A;
+  --lagoon: #8FD6DE;
+  --on-lagoon: #0D1916;
+  --lagoon-soft: #10353A;
+  --mint: #7ED6B3;
+  --on-mint: #10302A;
+  --mint-soft: #163A2E;
+  --emerald: #62D19A;
+  --emerald-soft: #113325;
   --brick: #FF8A7A;
   --brick-soft: #3F1512;
-  --focus: #9DB4FF;
-  --shadow-card: 0 0 0 1px rgba(244,238,229,0.06);
-  --shadow-pop: 0 0 0 1px rgba(244,238,229,0.10), 0 20px 40px -16px rgba(0,0,0,0.6);
+  --focus: #8FD6DE;
+  --shadow-card: 0 0 0 1px rgba(238,243,236,0.06);
+  --shadow-pop: 0 0 0 1px rgba(238,243,236,0.10), 0 20px 40px -16px rgba(0,0,0,0.6);
 }
 
 /* Type styles (use as classes) */
