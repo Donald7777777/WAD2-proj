@@ -32,10 +32,16 @@ router.post('/api/trades/:id/accept', requireLogin, tradeController.acceptTrade)
 router.post('/api/trades/:id/reject', requireLogin, tradeController.rejectTrade);
 router.post('/api/trades/:id/counter', requireLogin, tradeController.counterTrade);
 router.post('/api/trades/:id/cancel', requireLogin, tradeController.cancelTrade);
+// "Could you add more?" requests
+router.post('/api/trades/:id/requests', requireLogin, tradeController.requestMore);
+router.post('/api/trades/:id/requests/:requestId/respond', requireLogin, tradeController.respondToRequest);
 
 // Chat (feature 3)
 router.get('/api/trades/:id/messages', requireLogin, messageController.getMessages);
 router.post('/api/trades/:id/messages', requireLogin, messageController.sendMessage);
+// Notifications: new messages and trade events across all my trades
+router.get('/api/notifications/stream', requireLogin, messageController.streamNotifications);
+router.get('/api/notifications', requireLogin, messageController.getNotifications);
 
 // Meetup (feature 4)
 router.put('/api/trades/:id/meetup', requireLogin, tradeController.setMeetup);
