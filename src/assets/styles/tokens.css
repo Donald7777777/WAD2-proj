@@ -1,0 +1,90 @@
+/* TradeHappy design tokens.
+ * Source of truth: the TradeHappy design system (tokens.json). Change values there first,
+ * then copy them here. Never hard-code a colour or size in a component; use these variables. */
+
+:root,
+[data-theme="light"] {
+  --paper: #FBF6EE;
+  --paper-raised: #FFFFFF;
+  --paper-sunk: #F3ECE1;
+  --line: #E6DCCD;
+  --line-strong: #8C7E6E;
+  --ink: #1E1A16;
+  --ink-muted: #665A4D;
+  --on-ink: #FBF6EE;
+  --persimmon: #C03C17;
+  --on-persimmon: #FFFFFF;
+  --persimmon-soft: #FFEADF;
+  --cobalt: #2D55C8;
+  --on-cobalt: #FFFFFF;
+  --cobalt-soft: #E2E9FF;
+  --butter: #F2C230;
+  --on-butter: #1E1A16;
+  --butter-soft: #FFF3C7;
+  --teal: #0B7366;
+  --teal-soft: #D9F2EE;
+  --brick: #B42318;
+  --brick-soft: #FDE3E0;
+  --focus: #2D55C8;
+  --shadow-card: 0 1px 0 rgba(30,26,22,0.05), 0 8px 24px -14px rgba(30,26,22,0.22);
+  --shadow-pop: 0 2px 4px rgba(30,26,22,0.06), 0 20px 40px -16px rgba(30,26,22,0.30);
+
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-sans: "Figtree", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+}
+
+/* Dark theme: set data-theme="dark" on <html>. */
+[data-theme="dark"] {
+  --paper: #15120F;
+  --paper-raised: #201C18;
+  --paper-sunk: #0D0B09;
+  --line: #38312A;
+  --line-strong: #857767;
+  --ink: #F4EEE5;
+  --ink-muted: #B3A696;
+  --on-ink: #15120F;
+  --persimmon: #FF7E54;
+  --on-persimmon: #15120F;
+  --persimmon-soft: #3E1B0F;
+  --cobalt: #86A2FF;
+  --on-cobalt: #15120F;
+  --cobalt-soft: #18244D;
+  --butter: #F2C230;
+  --on-butter: #15120F;
+  --butter-soft: #3A3010;
+  --teal: #4FD1BE;
+  --teal-soft: #0E302B;
+  --brick: #FF8A7A;
+  --brick-soft: #3F1512;
+  --focus: #9DB4FF;
+  --shadow-card: 0 0 0 1px rgba(244,238,229,0.06);
+  --shadow-pop: 0 0 0 1px rgba(244,238,229,0.10), 0 20px 40px -16px rgba(0,0,0,0.6);
+}
+
+/* Type styles (use as classes) */
+.display-xl { font-family: var(--font-display); font-size: 56px; line-height: 56px; font-weight: 700; letter-spacing: -0.02em; }
+.display-l { font-family: var(--font-display); font-size: 40px; line-height: 44px; font-weight: 700; letter-spacing: -0.015em; }
+.title-l { font-family: var(--font-display); font-size: 28px; line-height: 34px; font-weight: 650; letter-spacing: -0.01em; }
+.title-m { font-family: var(--font-display); font-size: 20px; line-height: 26px; font-weight: 600; }
+.body-l { font-family: var(--font-sans); font-size: 17px; line-height: 26px; font-weight: 400; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 400; }
+.body-strong { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 600; }
+.label { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 600; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 500; }
+.data { font-family: var(--font-mono); font-size: 13px; line-height: 16px; font-weight: 500; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; line-height: 14px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }

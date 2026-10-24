@@ -1,0 +1,296 @@
+/* Re-skins Bootstrap 5 with TradeHappy tokens, so existing Bootstrap markup
+   (cards, forms, buttons, alerts) follows the brand. Load AFTER bootstrap.min.css. */
+
+:root,
+[data-theme] {
+  --bs-body-font-family: var(--font-sans);
+  --bs-body-font-size: 0.9375rem;
+  --bs-body-line-height: 1.47;
+  --bs-body-color: var(--ink);
+  --bs-body-bg: var(--paper);
+  --bs-emphasis-color: var(--ink);
+  --bs-heading-color: var(--ink);
+  --bs-secondary-color: var(--ink-muted);
+  --bs-secondary-bg: var(--paper-sunk);
+  --bs-tertiary-bg: var(--paper-sunk);
+  --bs-border-color: var(--line);
+  --bs-border-radius: var(--radius-md);
+  --bs-border-radius-sm: var(--radius-sm);
+  --bs-border-radius-lg: var(--radius-lg);
+  --bs-border-radius-pill: var(--radius-pill);
+  --bs-link-color: var(--cobalt);
+  --bs-link-color-rgb: 45, 85, 200;
+  --bs-link-hover-color: var(--ink);
+  --bs-link-hover-color-rgb: 30, 26, 22;
+  --bs-focus-ring-color: transparent;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  font-weight: 650;
+}
+
+.text-secondary,
+.text-muted,
+.form-text {
+  color: var(--ink-muted) !important;
+}
+
+a { text-underline-offset: 3px; }
+
+/* One focus style everywhere (see design system: focus) */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
+.btn:focus-visible,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  --bs-btn-font-weight: 600;
+  --bs-btn-padding-x: var(--space-5);
+  --bs-btn-padding-y: 10px;
+  --bs-btn-font-size: 15px;
+  --bs-btn-line-height: 22px;
+  --bs-btn-border-radius: var(--radius-pill);
+  --bs-btn-border-width: 1.5px;
+  --bs-btn-focus-box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-sm {
+  --bs-btn-padding-x: var(--space-3);
+  --bs-btn-padding-y: 6px;
+  --bs-btn-font-size: 13px;
+  --bs-btn-line-height: 18px;
+  --bs-btn-border-radius: var(--radius-pill);
+  min-height: 36px;
+}
+.btn-lg {
+  --bs-btn-padding-x: var(--space-6);
+  --bs-btn-font-size: 17px;
+  --bs-btn-border-radius: var(--radius-pill);
+  min-height: 52px;
+}
+
+/* Primary decision: ink. (.btn-success / .btn-dark kept as aliases for older markup) */
+.btn-primary,
+.btn-dark,
+.btn-success {
+  --bs-btn-color: var(--on-ink);
+  --bs-btn-bg: var(--ink);
+  --bs-btn-border-color: var(--ink);
+  --bs-btn-hover-color: var(--on-ink);
+  --bs-btn-hover-bg: #3a332b;
+  --bs-btn-hover-border-color: #3a332b;
+  --bs-btn-active-color: var(--on-ink);
+  --bs-btn-active-bg: var(--ink);
+  --bs-btn-active-border-color: var(--ink);
+  --bs-btn-disabled-color: var(--ink-muted);
+  --bs-btn-disabled-bg: var(--paper-sunk);
+  --bs-btn-disabled-border-color: var(--line);
+  --bs-btn-disabled-opacity: 1;
+}
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-dark,
+[data-theme="dark"] .btn-success {
+  --bs-btn-hover-bg: #ffffff;
+  --bs-btn-hover-border-color: #ffffff;
+}
+
+/* Offer: your side, starts a trade */
+.btn-offer {
+  --bs-btn-color: var(--on-persimmon);
+  --bs-btn-bg: var(--persimmon);
+  --bs-btn-border-color: var(--persimmon);
+  --bs-btn-hover-color: var(--on-persimmon);
+  --bs-btn-hover-bg: #a8340f;
+  --bs-btn-hover-border-color: #a8340f;
+  --bs-btn-active-color: var(--on-persimmon);
+  --bs-btn-active-bg: var(--persimmon);
+  --bs-btn-active-border-color: var(--persimmon);
+  --bs-btn-disabled-color: var(--ink-muted);
+  --bs-btn-disabled-bg: var(--paper-sunk);
+  --bs-btn-disabled-border-color: var(--line);
+  --bs-btn-disabled-opacity: 1;
+}
+
+/* Secondary: outline */
+.btn-outline-dark,
+.btn-outline-secondary,
+.btn-outline-success,
+.btn-secondary,
+.btn-light {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--line-strong);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-bg: var(--paper-sunk);
+  --bs-btn-hover-border-color: var(--ink);
+  --bs-btn-active-color: var(--on-ink);
+  --bs-btn-active-bg: var(--ink);
+  --bs-btn-active-border-color: var(--ink);
+  --bs-btn-disabled-color: var(--ink-muted);
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: var(--line);
+  --bs-btn-disabled-opacity: 1;
+}
+
+/* Danger: cancel, report, delete */
+.btn-outline-danger {
+  --bs-btn-color: var(--brick);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--brick);
+  --bs-btn-hover-color: var(--brick);
+  --bs-btn-hover-bg: var(--brick-soft);
+  --bs-btn-hover-border-color: var(--brick);
+  --bs-btn-active-color: var(--brick);
+  --bs-btn-active-bg: var(--brick-soft);
+  --bs-btn-active-border-color: var(--brick);
+}
+
+/* Ghost */
+.btn-link,
+.btn-ghost {
+  --bs-btn-color: var(--ink);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-bg: var(--paper-sunk);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-border-color: transparent;
+  text-decoration: none;
+}
+
+/* ---------- Cards, lists ---------- */
+.card {
+  --bs-card-bg: var(--paper-raised);
+  --bs-card-border-color: var(--line);
+  --bs-card-border-radius: var(--radius-md);
+  --bs-card-inner-border-radius: calc(var(--radius-md) - 1px);
+  --bs-card-cap-bg: transparent;
+  --bs-card-spacer-x: var(--space-4);
+  --bs-card-spacer-y: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+.card-header {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+}
+.shadow-sm { box-shadow: var(--shadow-card) !important; }
+
+.list-group {
+  --bs-list-group-bg: var(--paper-raised);
+  --bs-list-group-border-color: var(--line);
+  --bs-list-group-border-radius: var(--radius-md);
+  --bs-list-group-action-hover-bg: var(--paper-sunk);
+  --bs-list-group-action-active-bg: var(--paper-sunk);
+  --bs-list-group-action-hover-color: var(--ink);
+  --bs-list-group-active-bg: var(--ink);
+  --bs-list-group-active-border-color: var(--ink);
+}
+
+/* ---------- Forms ---------- */
+.form-label {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 18px;
+  margin-bottom: 6px;
+}
+.form-control,
+.form-select {
+  min-height: 44px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--paper-raised);
+  color: var(--ink);
+  font-size: 15px;
+}
+.form-control::placeholder { color: var(--ink-muted); }
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--ink);
+  background-color: var(--paper-raised);
+  color: var(--ink);
+}
+@media (max-width: 575.98px) {
+  /* 16px stops iOS Safari zooming into inputs */
+  .form-control, .form-select { font-size: 16px; }
+}
+.form-check-input {
+  width: 1.25em;
+  height: 1.25em;
+  border: 1.5px solid var(--line-strong);
+  background-color: var(--paper-raised);
+}
+.form-check-input:checked {
+  background-color: var(--teal);
+  border-color: var(--teal);
+}
+.input-group > .form-control { border-radius: var(--radius-pill) 0 0 var(--radius-pill); padding-left: var(--space-4); }
+.input-group > .btn { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; }
+
+/* ---------- Badges, alerts, progress ---------- */
+.badge {
+  --bs-badge-font-size: 12px;
+  --bs-badge-font-weight: 600;
+  --bs-badge-padding-x: var(--space-2);
+  --bs-badge-padding-y: 4px;
+  --bs-badge-border-radius: var(--radius-pill);
+}
+
+.alert {
+  --bs-alert-border-radius: var(--radius-md);
+  --bs-alert-padding-x: var(--space-4);
+  --bs-alert-padding-y: var(--space-3);
+  --bs-alert-color: var(--ink);
+  border: 0;
+  font-size: 14px;
+}
+.alert-danger { --bs-alert-bg: var(--brick-soft); --bs-alert-color: var(--ink); border-left: 0; }
+.alert-success { --bs-alert-bg: var(--teal-soft); --bs-alert-color: var(--ink); }
+.alert-info { --bs-alert-bg: var(--cobalt-soft); --bs-alert-color: var(--ink); }
+.alert-warning { --bs-alert-bg: var(--butter-soft); --bs-alert-color: var(--ink); }
+.alert-light { --bs-alert-bg: var(--paper-sunk); --bs-alert-color: var(--ink-muted); }
+
+.progress {
+  --bs-progress-height: 8px;
+  --bs-progress-bg: var(--paper-sunk);
+  --bs-progress-border-radius: var(--radius-pill);
+  --bs-progress-bar-bg: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Pills used as tabs */
+.nav-pills {
+  --bs-nav-pills-border-radius: var(--radius-pill);
+  --bs-nav-pills-link-active-bg: var(--ink);
+  --bs-nav-pills-link-active-color: var(--on-ink);
+  --bs-nav-link-color: var(--ink);
+  --bs-nav-link-hover-color: var(--ink);
+  --bs-nav-link-font-weight: 600;
+  gap: var(--space-2);
+}
+.nav-pills .nav-link { border: 1.5px solid var(--line-strong); min-height: 40px; font-size: 14px; }
+.nav-pills .nav-link.active { border-color: var(--ink); }
+
+.img-thumbnail { border-color: var(--line); border-radius: var(--radius-sm); background: var(--paper-raised); }
