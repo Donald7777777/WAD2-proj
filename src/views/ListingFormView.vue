@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import { deleteImage } from '@/lib/storage'
 import { CATEGORIES, CONDITIONS } from '@/lib/constants'
-import ImageUploader from '@/components/ImageUploader.vue'
+import PhotoUploader from '@/components/PhotoUploader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,18 +18,16 @@ const form = ref({
   category: '',
   condition: '',
   lookingFor: '',
-  imagePath: '',
-  imageUrl: '',
+  // All photos as { path, url }; the first is the cover
+  images: [],
 })
-const originalImagePath = ref('')
+// Photos the listing had when the page opened, so removed ones can be deleted from storage on save
+const originalPaths = ref([])
 const loaded = ref(!isEdit.value)
 const error = ref('')
 const saving = ref(false)
+const photosUploading = ref(false)
 
-function onUploaded(result) {
-  form.value.imagePath = result.path
-  form.value.imageUrl = result.url
-}
 
 async function save() {
   error.value = ''
@@ -39,9 +37,9 @@ async function save() {
     if (isEdit.value) {
       response = await api.put(`/listings/${route.params.id}`, form.value)
       // Remove the old photo from storage if it was replaced
-      if (originalImagePath.value && originalImagePath.value !== form.value.imagePath) {
-        deleteImage(originalImagePath.value).catch(() => {})
-      }
+      // Remove photos that were taken out of the listing from Supabase Storage
+      const kept = new Set(form.value.images.map((img) => img.path))
+      originalPaths.value.filter((path) => path && !kept.has(path)).forEach((path) => deleteImage(path).catch(() => {}))
     } else {
       response = await api.post('/listings', form.value)
     }
@@ -64,10 +62,14 @@ onMounted(async () => {
       category: listing.category,
       condition: listing.condition,
       lookingFor: listing.lookingFor,
-      imagePath: listing.imagePath,
-      imageUrl: listing.imageUrl,
+      // Older listings only have one photo (imageUrl); newer ones have the images list
+      images: listing.images?.length
+        ? listing.images.map((img) => ({ path: img.path, url: img.url }))
+        : listing.imageUrl
+          ? [{ path: listing.imagePath, url: listing.imageUrl }]
+          : [],
     }
-    originalImagePath.value = listing.imagePath
+    originalPaths.value = form.value.images.map((img) => img.path)
     loaded.value = true
   } catch (e) {
     error.value = errorMessage(e)
@@ -87,8 +89,8 @@ onMounted(async () => {
 
     <form v-if="loaded" class="card th-panel" @submit.prevent="save">
       <div class="mb-4">
-        <label class="form-label">Photo</label>
-        <ImageUploader folder="listings" :initial-url="form.imageUrl" @uploaded="onUploaded" />
+        <label class="form-label">Photos</label>
+        <PhotoUploader v-model="form.images" folder="listings" :max="6" @busy="photosUploading = $event" />
       </div>
 
       <div class="mb-3">
@@ -133,8 +135,8 @@ onMounted(async () => {
 
       <div class="th-form-actions">
         <button class="btn btn-link" type="button" @click="router.back()">Cancel</button>
-        <button class="btn btn-primary" type="submit" :disabled="saving">
-          {{ isEdit ? 'Save changes' : 'Create listing' }}
+        <button class="btn btn-primary" type="submit" :disabled="saving || photosUploading">
+          {{ photosUploading ? 'Uploading photos…' : isEdit ? 'Save changes' : 'Create listing' }}
         </button>
       </div>
     </form>

@@ -27,8 +27,9 @@ async function remove(listing) {
   try {
     const response = await api.delete(`/listings/${listing._id}`)
     // Also remove the photo from Supabase Storage
-    if (response.data.imagePath) {
-      deleteImage(response.data.imagePath).catch(() => {})
+    const paths = response.data.imagePaths || [response.data.imagePath].filter(Boolean)
+    for (const path of paths) {
+      deleteImage(path).catch(() => {})
     }
     listings.value = listings.value.filter((l) => l._id !== listing._id)
   } catch (e) {

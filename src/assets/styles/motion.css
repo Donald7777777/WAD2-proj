@@ -376,3 +376,42 @@
   .th-reveal { opacity: 1; transform: none; }
   .th-hero::before, .th-hero::after, .th-skeleton::after { animation: none !important; }
 }
+
+/* Banner on a closed trade pointing to the newer one */
+.th-newer-trade {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--radius-md);
+  background: var(--grad-soft); color: var(--ink); text-decoration: none; border: 1px solid var(--line);
+  animation: th-event-in 0.5s var(--ease-spring) both; transition: transform 0.2s var(--ease-spring), box-shadow 0.2s ease;
+}
+.th-newer-trade:hover { color: var(--ink); transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.th-newer-icon { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 50%; background: var(--lime); color: var(--on-lime); flex: none; }
+.th-newer-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.th-newer-text b { font-size: 15px; }
+.th-newer-text span { font-size: 13px; color: var(--ink-muted); }
+.th-newer-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.th-flip { transform: rotate(180deg); }
+
+/* Match % colours: strong = green, medium = yellow, low = soft teal (no red) */
+.th-match-pill[data-level="high"] { background: #1C7350; color: #FFFFFF; box-shadow: 0 0 0 2px rgba(200, 242, 106, 0.55); }
+.th-match-pill[data-level="medium"] { background: #F6D84A; color: #3A3000; }
+.th-match-pill[data-level="low"] { background: #DCEEEF; color: #156C74; }
+
+/* "3 photos" chip on listing cards */
+.th-photo-count {
+  position: absolute; right: 8px; bottom: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 999px; background: rgba(16, 48, 42, 0.72); color: #F4F5EF; font: 600 11px/1 var(--font-sans);
+}
+
+/* Declined: a grey line reaches out from you, falls short, droops and fades; they shake their head */
+.th-tlink[data-state="declined"] .th-tlink-arc { stroke: var(--line-strong); stroke-width: 5; stroke-dasharray: 1; stroke-dashoffset: 0.45; opacity: 0; }
+.th-tlink[data-play="decline"] .th-tlink-arc { animation: th-reach 1.3s var(--ease-out) both; transform-box: view-box; transform-origin: 14px 12px; }
+@keyframes th-reach {
+  0% { stroke-dashoffset: 1; opacity: 1; transform: none; }
+  45% { stroke-dashoffset: 0.42; opacity: 1; transform: none; }
+  60% { stroke-dashoffset: 0.45; opacity: 1; transform: none; }
+  100% { stroke-dashoffset: 0.45; opacity: 0; transform: rotate(4deg) translateY(6px); }
+}
+.th-tlink[data-state="declined"] .th-tlink-label { color: var(--ink-muted); font-weight: 600; font-size: 14px; }
+.th-tlink[data-play="decline"] .th-tlink-them .th-tlink-dot { animation: th-head-shake 0.7s ease-in-out 0.65s both; }
+@keyframes th-head-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px) rotate(-6deg); } 40% { transform: translateX(6px) rotate(6deg); } 60% { transform: translateX(-4px) rotate(-3deg); } 80% { transform: translateX(3px); } }
+.th-tlink[data-state="declined"] .th-tlink-you { transition: transform 0.8s var(--ease-out) 0.9s, filter 0.8s ease 0.9s; transform: translateY(3px); filter: saturate(0.4); }

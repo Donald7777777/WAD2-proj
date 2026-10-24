@@ -7,12 +7,21 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import ConditionBadge from '@/components/ConditionBadge.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import PhotoGallery from '@/components/PhotoGallery.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
 
 const listing = ref(null)
 const error = ref('')
+
+// All photos (older listings only have the single imageUrl)
+const photos = computed(() => {
+  const l = listing.value
+  if (!l) return []
+  if (l.images?.length) return l.images
+  return l.imageUrl ? [{ url: l.imageUrl }] : []
+})
 
 const isOwner = computed(() => auth.user && listing.value?.owner._id === auth.user._id)
 
@@ -31,13 +40,7 @@ onMounted(async () => {
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
   <div v-if="listing" class="th-detail">
-    <div class="th-detail-media">
-      <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" />
-      <div v-else class="th-listing-noimg">
-        <AppIcon name="image" :size="36" />
-        <span>No photo yet</span>
-      </div>
-    </div>
+    <PhotoGallery :images="photos" :title="listing.title" />
 
     <div class="th-detail-info">
       <span class="eyebrow th-muted">{{ listing.category }}</span>

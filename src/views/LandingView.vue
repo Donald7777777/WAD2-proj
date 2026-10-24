@@ -4,15 +4,15 @@ import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { confetti, prefersReducedMotion } from '@/lib/motion'
 import AppIcon from '@/components/AppIcon.vue'
- 
+
 // Landing page: a giant, interactive logo. Click the smile to connect the two dots and enter the app.
 const router = useRouter()
 const auth = useAuthStore()
- 
+
 const root = ref(null)
 const logo = ref(null)
 const canvas = ref(null)
- 
+
 // Pointer position, -1..1 from the centre of the screen (drives tilt, parallax, eyes, spotlight)
 const pointer = ref({ x: 0, y: 0, px: 50, py: 50 })
 // 0 (far from the logo) .. 1 (on the logo): the logo smiles wider as you get closer
@@ -23,7 +23,7 @@ const blinking = ref(false)
 const magnet = ref({ x: 0, y: 0 })
 // Phones and tablets say "Tap" instead of "Click"
 const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches
- 
+
 // ---------- The logo ----------
 const smileDepth = computed(() => 47 + closeness.value * 8 + (entering.value ? 4 : 0))
 const smilePath = computed(() => `M13 37 C19 ${smileDepth.value} 45 ${smileDepth.value} 51 37`)
@@ -33,7 +33,7 @@ const linkPath = computed(
 )
 // The dots look towards the cursor, like eyes
 const eyes = computed(() => ({ x: pointer.value.x * 2.4, y: pointer.value.y * 2 }))
- 
+
 // ---------- "Almost connected" ----------
 // One gradient line (same width and path as the smile) grows from your dot along the smile.
 // On hover it stops just short of their dot, with a glowing tip; clicking closes the gap.
@@ -44,18 +44,18 @@ const tip = ref({ x: 22, y: 24 })
 const snapped = ref(false)
 const HOVER_STOP = 0.84 // how far the line gets on hover: a small, visible gap remains
 const isNear = computed(() => progress.value > 0.6 && !snapped.value)
- 
+
 const easeOut = (t) => 1 - Math.pow(1 - t, 3)
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const easeIn = (t) => t * t * t
- 
+
 function updateTip() {
   const el = linkEl.value
   if (!el?.getTotalLength) return
   const point = el.getPointAtLength(el.getTotalLength() * progress.value)
   tip.value = { x: point.x, y: point.y }
 }
- 
+
 let tween = 0
 function drawTo(target, duration, ease) {
   cancelAnimationFrame(tween)
@@ -72,10 +72,10 @@ function drawTo(target, duration, ease) {
     tween = requestAnimationFrame(step)
   })
 }
- 
+
 // The smile widens as you get closer, so keep the tip on the line when its shape changes
 watch(linkPath, () => nextTick(updateTip))
- 
+
 function onLogoEnter() {
   hovering.value = true
   if (!entering.value && !prefersReducedMotion()) drawTo(HOVER_STOP, 850, easeOut)
@@ -84,7 +84,7 @@ function onLogoLeave() {
   hovering.value = false
   if (!entering.value) drawTo(0, 500, easeInOut)
 }
- 
+
 const logoStyle = computed(() => {
   const tiltX = entering.value ? 0 : -pointer.value.y * 12
   const tiltY = entering.value ? 0 : pointer.value.x * 14
@@ -98,7 +98,7 @@ const rootStyle = computed(() => ({
   '--mx': `${pointer.value.px}%`,
   '--my': `${pointer.value.py}%`,
 }))
- 
+
 function onMove(event) {
   const w = window.innerWidth
   const h = window.innerHeight
@@ -120,13 +120,13 @@ function onMove(event) {
   // Magnetic pull when the cursor is over the logo
   magnet.value = hovering.value && !entering.value ? { x: (event.clientX - cx) * 0.06, y: (event.clientY - cy) * 0.06 } : { x: 0, y: 0 }
 }
- 
+
 function onLeave() {
   mouse.active = false
   hovering.value = false
   magnet.value = { x: 0, y: 0 }
 }
- 
+
 // Click the smile: the line connects, their dot pops, confetti, then a green wave carries you in
 function enter() {
   if (entering.value) return
@@ -145,11 +145,11 @@ function enter() {
     setTimeout(() => router.push('/discover'), 1150)
   })
 }
- 
+
 // ---------- Rotating word in the tagline ----------
 const words = ['film camera', 'old records', 'textbooks', 'guitar', 'bike', 'sneakers', 'board games']
 const wordIndex = ref(0)
- 
+
 // ---------- Floating "items up for trade" ----------
 const items = [
   { icon: 'camera', label: 'Film camera', x: 9, y: 18, depth: 1.4, delay: 0 },
@@ -161,7 +161,7 @@ const items = [
   { icon: 'chat', label: 'Books', x: 30, y: 86, depth: 1.2, delay: 1.5 },
   { icon: 'clock', label: 'Watch', x: 66, y: 88, depth: 0.9, delay: 0.3 },
 ]
- 
+
 // ---------- Background network of dots that link up near the cursor ----------
 const mouse = { x: -9999, y: -9999, active: false }
 let implode = false
@@ -170,7 +170,7 @@ let frame = 0
 let ctx = null
 let width = 0
 let height = 0
- 
+
 function resize() {
   const c = canvas.value
   if (!c) return
@@ -191,7 +191,7 @@ function resize() {
     lime: Math.random() > 0.5,
   }))
 }
- 
+
 function draw() {
   if (!ctx) return
   ctx.clearRect(0, 0, width, height)
@@ -252,12 +252,12 @@ function draw() {
     ctx.fill()
   }
 }
- 
+
 function loop() {
   if (!document.hidden) draw()
   frame = requestAnimationFrame(loop)
 }
- 
+
 let wordTimer = null
 let blinkTimer = null
 function scheduleBlink() {
@@ -270,7 +270,7 @@ function scheduleBlink() {
     2400 + Math.random() * 3200,
   )
 }
- 
+
 onMounted(() => {
   resize()
   window.addEventListener('resize', resize)
@@ -282,7 +282,7 @@ onMounted(() => {
     scheduleBlink()
   }
 })
- 
+
 onUnmounted(() => {
   cancelAnimationFrame(frame)
   cancelAnimationFrame(tween)
@@ -291,7 +291,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', resize)
 })
 </script>
- 
+
 <template>
   <div
     ref="root"
@@ -303,7 +303,7 @@ onUnmounted(() => {
   >
     <canvas ref="canvas" class="th-landing-net" aria-hidden="true"></canvas>
     <div class="th-landing-spot" aria-hidden="true"></div>
- 
+
     <!-- Items up for trade, drifting at different depths -->
     <div class="th-landing-items" aria-hidden="true">
       <span
@@ -315,7 +315,7 @@ onUnmounted(() => {
         <AppIcon :name="item.icon" :size="18" />{{ item.label }}
       </span>
     </div>
- 
+
     <header class="th-landing-top">
       <span class="th-landing-brand">Trade<em>Happy</em></span>
       <nav class="th-landing-links">
@@ -326,7 +326,7 @@ onUnmounted(() => {
         <RouterLink to="/discover" class="th-landing-link th-landing-skip">Enter site<AppIcon name="back" :size="16" class="th-flip" /></RouterLink>
       </nav>
     </header>
- 
+
     <main class="th-landing-centre">
       <button
         ref="logo"
@@ -394,7 +394,7 @@ onUnmounted(() => {
           </g>
         </svg>
       </button>
- 
+
       <h1 class="th-landing-title">Trade<em>Happy</em></h1>
       <p class="th-landing-tag">
         Swap your
@@ -409,12 +409,12 @@ onUnmounted(() => {
         <span class="th-landing-hint-dot"></span>{{ entering ? 'Connecting you…' : `${isTouch ? 'Tap' : 'Click'} the smile to start` }}
       </p>
     </main>
- 
+
     <!-- The wave that carries you into the app -->
     <div class="th-landing-wave" aria-hidden="true"></div>
   </div>
 </template>
- 
+
 <style>
 /* Landing page. It always sits on the dark forest background, so colours are fixed here. */
 .th-landing {
@@ -433,7 +433,7 @@ onUnmounted(() => {
   position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 40%), rgba(200, 242, 106, 0.12), transparent 70%);
 }
- 
+
 /* Floating item tiles with parallax */
 .th-landing-items { position: absolute; inset: 0; pointer-events: none; }
 .th-landing-item {
@@ -449,7 +449,7 @@ onUnmounted(() => {
 .th-landing-item svg { color: #C8F26A; }
 @keyframes th-landing-bob { 50% { transform: translateY(-14px) rotate(-2deg); } }
 @media (max-width: 767.98px) { .th-landing-item:nth-child(n + 5) { display: none; } }
- 
+
 /* Top bar */
 .th-landing-top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 22px clamp(16px, 4vw, 48px); }
 .th-landing-brand { font: 750 20px/1 var(--font-display); letter-spacing: -0.02em; opacity: 0; transition: opacity 0.4s ease; }
@@ -463,7 +463,7 @@ onUnmounted(() => {
 .th-landing-link:hover { color: #10302A; background: #C8F26A; border-color: #C8F26A; transform: translateY(-1px); }
 .th-landing-hi { font-weight: 600; font-size: 14px; opacity: 0.8; margin-right: 6px; }
 .th-flip { transform: rotate(180deg); }
- 
+
 /* Centre: the giant logo */
 .th-landing-centre { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 16px 6vh; text-align: center; }
 .th-landing-logo {
@@ -484,7 +484,7 @@ onUnmounted(() => {
 .th-lm-link { stroke-dasharray: 1; filter: drop-shadow(0 0 1.5px rgba(200, 242, 106, 0.55)); }
 .th-lm-dot { transform-box: fill-box; transform-origin: center; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .th-landing.is-blinking .th-lm-dot { transform: scaleY(0.12); transition-duration: 0.08s; }
- 
+
 /* Hover: the line starts growing out of your dot, the arrowheads wiggle */
 /* Hover: the white smile melts away completely (no grey ghost), the gradient line takes its place */
 .th-landing.is-hover .th-lm-smile,
@@ -496,7 +496,7 @@ onUnmounted(() => {
 .th-lm-tip-glow { transform-box: fill-box; transform-origin: center; animation: th-tip-pulse 1.1s ease-in-out infinite; }
 @keyframes th-tip-pulse { 0%, 100% { transform: scale(0.75); opacity: 0.65; } 50% { transform: scale(1.15); opacity: 1; } }
 .th-lm-flash { opacity: 0; transform-box: fill-box; transform-origin: center; pointer-events: none; }
- 
+
 /* Pulsing rings behind the logo */
 .th-landing-ring {
   position: absolute; inset: 6%; border-radius: 30%; border: 2px solid rgba(200, 242, 106, 0.35); pointer-events: none;
@@ -504,7 +504,7 @@ onUnmounted(() => {
 }
 .th-landing-ring-2 { border-color: rgba(126, 214, 179, 0.3); animation-delay: 1.6s; }
 @keyframes th-landing-ring { from { transform: scale(0.95); opacity: 0.9; } to { transform: scale(1.35); opacity: 0; } }
- 
+
 /* Text under the logo */
 .th-landing-title { margin: clamp(12px, 3vh, 28px) 0 6px; font: 750 clamp(34px, 6vw, 64px)/1 var(--font-display); letter-spacing: -0.03em; color: #F4F5EF; }
 .th-landing-tag { margin: 0; font-size: clamp(16px, 2.2vw, 21px); line-height: 1.4; color: rgba(244, 245, 239, 0.8); }
@@ -521,7 +521,7 @@ onUnmounted(() => {
 }
 .th-landing-hint-dot { width: 8px; height: 8px; border-radius: 50%; background: #C8F26A; box-shadow: 0 0 0 0 rgba(200, 242, 106, 0.7); animation: th-landing-ping 1.6s ease-out infinite; }
 @keyframes th-landing-ping { to { box-shadow: 0 0 0 10px rgba(200, 242, 106, 0); } }
- 
+
 /* Click: the smile connects, then everything zooms through into the app */
 .th-landing.is-entering .th-lm-you { transform: scale(1.12); }
 /* Snap: the gap closes, a ring flashes out of their dot and it pops */
@@ -548,7 +548,7 @@ onUnmounted(() => {
   50% { background: #7ED6B3; }
   100% { clip-path: circle(150% at 50% 42%); background: #F4F5EF; }
 }
- 
+
 @media (max-width: 575.98px) {
   .th-landing-link:not(.th-landing-skip) { display: none; }
   .th-landing-logo { width: min(46vh, 80vw); }
