@@ -5,6 +5,8 @@ import { api, errorMessage } from '@/lib/api'
 import ListingCard from '@/components/ListingCard.vue'
 import ItemPicker from '@/components/ItemPicker.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { flyTo, bump } from '@/lib/motion'
+import { showToast } from '@/lib/toast'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,14 +16,20 @@ const myListings = ref([])
 const selectedIds = ref([])
 const error = ref('')
 const sending = ref(false)
+// The "N items selected" counter in the action bar; picked items fly into it
+const counter = ref(null)
 
 const available = computed(() => myListings.value.filter((l) => l.status === 'available'))
 
-function toggle(id) {
+function toggle(id, event) {
   if (selectedIds.value.includes(id)) {
     selectedIds.value = selectedIds.value.filter((x) => x !== id)
+    bump(counter.value)
   } else {
     selectedIds.value.push(id)
+    // A copy of the item's photo flies down into the counter
+    const thumb = event?.target?.closest('.th-pick')?.querySelector('.th-pick-thumb')
+    flyTo(thumb, counter.value)
   }
 }
 
@@ -33,6 +41,7 @@ async function propose() {
       requestedListingIds: [listing.value._id],
       offeredListingIds: selectedIds.value,
     })
+    showToast(`Proposal sent to ${listing.value.owner?.name || 'the owner'}!`, { icon: 'send' })
     router.push(`/trades/${response.data._id}`)
   } catch (e) {
     error.value = errorMessage(e)
@@ -82,7 +91,9 @@ onMounted(async () => {
       </div>
     </section>
 
-    <span class="th-swap-disc" aria-hidden="true"><AppIcon name="swap" /></span>
+    <span class="th-swap-disc" :class="{ 'is-spinning': sending, 'is-ready': selectedIds.length > 0 }" aria-hidden="true">
+      <AppIcon name="swap" />
+    </span>
 
     <section class="th-side th-side-you">
       <span class="th-side-label"><AppIcon name="box" :size="16" />You give</span>
@@ -96,9 +107,14 @@ onMounted(async () => {
 
   <div v-if="listing && available.length" class="th-action-bar">
     <span class="th-action-bar-text">
-      <b class="data">{{ selectedIds.length }}</b> item{{ selectedIds.length === 1 ? '' : 's' }} selected
+      <b ref="counter" class="data th-counter-num">{{ selectedIds.length }}</b> item{{ selectedIds.length === 1 ? '' : 's' }} selected
     </span>
-    <button class="btn btn-offer" :disabled="selectedIds.length === 0 || sending" @click="propose">
+    <button
+      class="btn btn-offer"
+      :class="{ 'is-ready': selectedIds.length > 0 && !sending }"
+      :disabled="selectedIds.length === 0 || sending"
+      @click="propose"
+    >
       <AppIcon name="send" />Send proposal ({{ selectedIds.length }} item{{ selectedIds.length === 1 ? '' : 's' }})
     </button>
   </div>

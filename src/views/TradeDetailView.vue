@@ -11,6 +11,8 @@ import InspectionChecklist from '@/components/InspectionChecklist.vue'
 import TradeTimeline from '@/components/TradeTimeline.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import TradeLink from '@/components/TradeLink.vue'
+import { showToast } from '@/lib/toast'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -50,6 +52,15 @@ const timelineStep = computed(() => {
 })
 const isClosed = computed(() => ['rejected', 'cancelled'].includes(trade.value.status))
 
+// State of the smile link between the two traders (see TradeLink.vue)
+const linkState = computed(() => {
+  const status = trade.value.status
+  if (status === 'completed') return 'done'
+  if (status === 'accepted') return 'linked'
+  if (isClosed.value) return 'broken'
+  return 'pending'
+})
+
 async function loadTrade() {
   try {
     const response = await api.get(`/trades/${route.params.id}`)
@@ -72,8 +83,23 @@ async function action(method, path, body) {
   }
 }
 
-function cancelTrade() {
-  if (confirm('Cancel this trade?')) action('post', 'cancel')
+async function acceptTrade() {
+  if (await action('post', 'accept')) showToast(`It's a deal! You and ${otherName.value} are linked.`)
+}
+
+async function rejectTrade() {
+  if (await action('post', 'reject')) showToast('Proposal declined.', { tone: 'info', icon: 'x' })
+}
+
+async function confirmHandover() {
+  if ((await action('post', 'confirm')) && trade.value.status === 'completed') {
+    showToast('Traded! Enjoy your new item.')
+  }
+}
+
+async function cancelTrade() {
+  if (!confirm('Cancel this trade?')) return
+  if (await action('post', 'cancel')) showToast('Trade cancelled. The items are available again.', { tone: 'info', icon: 'x' })
 }
 
 // Counter offer: load both users' available items so either side can be changed
@@ -118,6 +144,13 @@ onMounted(loadTrade)
         <StatusBadge :status="trade.status" />
       </div>
     </header>
+    <!-- The smile links you and them when the trade is accepted, and breaks if it is cancelled -->
+    <TradeLink
+      :you="auth.user.name"
+      :them="otherName"
+      :state="linkState"
+      :broken-label="trade.status === 'rejected' ? 'Proposal declined' : 'Trade cancelled'"
+    />
     <TradeTimeline v-if="!isClosed" :current="timelineStep" class="mb-4" />
     <div v-else class="alert alert-light mb-4">
       This trade was {{ trade.status === 'rejected' ? 'declined' : 'cancelled' }}. The items are available again.
@@ -164,9 +197,9 @@ onMounted(loadTrade)
                 {{ trade.status === 'countered' ? 'You received a counter offer.' : 'You received a proposal.' }}
               </p>
               <div class="th-proposal-actions">
-                <button class="btn btn-ghost" @click="action('post', 'reject')">Reject</button>
+                <button class="btn btn-ghost" @click="rejectTrade">Reject</button>
                 <button class="btn btn-outline-dark" @click="startCounter">Counter</button>
-                <button class="btn btn-primary" @click="action('post', 'accept')"><AppIcon name="check" />Accept</button>
+                <button class="btn btn-primary" @click="acceptTrade"><AppIcon name="check" />Accept</button>
               </div>
             </template>
             <template v-else-if="!myTurn">
@@ -231,7 +264,7 @@ onMounted(loadTrade)
             :locked="trade.status !== 'accepted'"
             :other-name="otherName"
             @toggle="(index, checked) => action('put', 'checklist', { index, checked })"
-            @confirm="action('post', 'confirm')"
+            @confirm="confirmHandover"
           />
         </template>
       </div>

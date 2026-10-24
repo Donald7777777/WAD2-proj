@@ -27,7 +27,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <RouterLink to="/" class="th-back"><AppIcon name="back" :size="18" />Discover</RouterLink>
+  <RouterLink to="/discover" class="th-back"><AppIcon name="back" :size="18" />Discover</RouterLink>
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
   <div v-if="listing" class="th-detail">

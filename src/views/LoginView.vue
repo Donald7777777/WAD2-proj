@@ -20,7 +20,7 @@ async function login() {
   try {
     await auth.login(email.value, password.value)
     // Go back to the page the user was trying to open, or home
-    router.push(route.query.redirect || '/')
+    router.push(route.query.redirect || '/discover')
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

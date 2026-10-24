@@ -3,7 +3,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppIcon from './AppIcon.vue'
 import UserAvatar from './UserAvatar.vue'
-import logoMark from '@/assets/logo-mark.svg'
+import LogoMark from './LogoMark.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -17,15 +17,15 @@ async function logout() {
 <template>
   <!-- Top bar: every screen size -->
   <header class="th-topbar">
-    <div class="container th-topbar-inner">
-      <RouterLink class="th-logo" to="/" aria-label="TradeHappy home">
-        <img :src="logoMark" width="32" height="32" alt="" />
+    <div class="container-fluid th-page th-topbar-inner">
+      <RouterLink class="th-logo" to="/discover" aria-label="TradeHappy home">
+        <LogoMark :size="32" />
         <span class="th-logo-word">Trade<em>Happy</em></span>
       </RouterLink>
 
       <!-- Desktop links (the mobile tab bar below covers these on small screens) -->
       <nav class="th-topnav d-none d-lg-flex" aria-label="Main">
-        <RouterLink to="/" class="th-topnav-link" exact-active-class="is-active">Discover</RouterLink>
+        <RouterLink to="/discover" class="th-topnav-link" exact-active-class="is-active">Discover</RouterLink>
         <template v-if="auth.user">
           <RouterLink to="/my-listings" class="th-topnav-link" active-class="is-active">My listings</RouterLink>
           <RouterLink to="/trades" class="th-topnav-link" active-class="is-active">My trades</RouterLink>
@@ -69,7 +69,7 @@ async function logout() {
 
   <!-- Bottom tab bar: phones and tablets, logged-in users -->
   <nav v-if="auth.user" class="th-tabbar d-lg-none" aria-label="Main">
-    <RouterLink to="/" class="th-tab" exact-active-class="is-active">
+    <RouterLink to="/discover" class="th-tab" exact-active-class="is-active">
       <AppIcon name="discover" />Discover
     </RouterLink>
     <RouterLink to="/trades" class="th-tab" active-class="is-active">
