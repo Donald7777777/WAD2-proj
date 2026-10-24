@@ -25,7 +25,7 @@ const emit = defineEmits(['toggle'])
         class="visually-hidden"
         type="checkbox"
         :checked="selectedIds.includes(listing._id)"
-        @change="emit('toggle', listing._id)"
+        @change="emit('toggle', listing._id, $event)"
       />
       <span class="th-pick-thumb">
         <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" />

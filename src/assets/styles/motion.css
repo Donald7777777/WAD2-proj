@@ -1,0 +1,378 @@
+/* TradeHappy motion + gradient layer.
+ * Everything interactive/animated added on top of components.css lives here,
+ * so it is easy to review, tweak or remove in one place.
+ * All animations switch off for people who set "reduce motion" in their OS (bottom of file). */
+
+/* ============================================================
+   1. Green gradient theme
+   Change these to match the slide deck; everything below uses them.
+   ============================================================ */
+:root {
+  --grad-forest: linear-gradient(135deg, #0B2721 0%, #12352D 38%, #17503F 70%, #1C7350 100%);
+  --grad-button: linear-gradient(135deg, #12352D 0%, #1C7350 100%);
+  --grad-button-hover: linear-gradient(135deg, #17503F 0%, #239063 100%);
+  /* The "smile" gradient: your colour (lime) into theirs (mint), as in the logo */
+  --grad-smile: linear-gradient(90deg, #C8F26A 0%, #7ED6B3 55%, #2FA39A 100%);
+  --grad-soft: linear-gradient(135deg, #E6F6DA 0%, #DDF3EA 55%, #D7EFEF 100%);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-theme="dark"] {
+  --grad-soft: linear-gradient(135deg, #1D2E18 0%, #163A2E 55%, #10353A 100%);
+}
+
+/* Primary buttons get the forest gradient (light theme only; dark theme keeps light buttons) */
+:root:not([data-theme="dark"]) .btn-primary {
+  background-image: var(--grad-button);
+  border-color: transparent;
+}
+:root:not([data-theme="dark"]) .btn-primary:hover,
+:root:not([data-theme="dark"]) .btn-primary:focus-visible {
+  background-image: var(--grad-button-hover);
+  border-color: transparent;
+}
+.btn { transition: transform 0.15s var(--ease-out), box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+.btn:not(:disabled):active { transform: scale(0.96); }
+.btn-offer:not(:disabled):hover { box-shadow: 0 8px 22px -10px rgba(140, 190, 40, 0.9); }
+
+/* Thin smile-gradient line under the top bar */
+.th-topbar { position: sticky; }
+.th-topbar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--grad-smile); opacity: 0.85;
+}
+
+/* Hero: deep green gradient with slowly drifting colour glows */
+.th-hero { background: var(--grad-forest); isolation: isolate; }
+.th-hero::before,
+.th-hero::after {
+  content: ""; position: absolute; z-index: -1; border-radius: 50%; filter: blur(60px); pointer-events: none;
+}
+.th-hero::before {
+  width: 55%; aspect-ratio: 1; right: -10%; top: -30%;
+  background: radial-gradient(circle, rgba(126, 214, 179, 0.45), transparent 65%);
+  animation: th-drift-a 18s ease-in-out infinite alternate;
+}
+.th-hero::after {
+  width: 45%; aspect-ratio: 1; left: 20%; bottom: -45%;
+  background: radial-gradient(circle, rgba(200, 242, 106, 0.28), transparent 65%);
+  animation: th-drift-b 22s ease-in-out infinite alternate;
+}
+@keyframes th-drift-a { to { transform: translate(-18%, 22%) scale(1.15); } }
+@keyframes th-drift-b { to { transform: translate(25%, -20%) scale(0.9); } }
+
+/* Hero art: the two tiles float (using `translate`, so it stacks on top of their tilt),
+   and lean towards each other when you hover the art */
+.th-hero-you, .th-hero-them { transition: transform 0.5s var(--ease-spring); }
+.th-hero-you { animation: th-float 6s ease-in-out infinite; }
+.th-hero-them { animation: th-float 6s ease-in-out -3s infinite; }
+@keyframes th-float { 50% { translate: 0 -9px; } }
+.th-hero-swap { transition: transform 0.6s var(--ease-spring); }
+.th-hero-art:hover .th-hero-swap { transform: rotate(180deg) scale(1.1); }
+.th-hero-art:hover .th-hero-you { transform: rotate(-8deg) translate(16px, -4px); }
+.th-hero-art:hover .th-hero-them { transform: rotate(7deg) translate(-16px, 4px); }
+.th-hero-match { animation: th-float 3.5s ease-in-out infinite; }
+
+/* Matches band picks up the soft gradient */
+.th-matches { background: var(--grad-soft); }
+
+/* ============================================================
+   2. Logo: the smile reaches the other dot on hover
+   ============================================================ */
+.th-mark { display: block; overflow: visible; }
+.th-mark-bg { fill: #12352D; transition: fill 0.3s ease; }
+.th-mark-smile { transition: opacity 0.2s ease; }
+.th-mark-link {
+  stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0;
+  transition: stroke-dashoffset 0.55s var(--ease-out), opacity 0.15s ease;
+}
+.th-mark-dot { transform-box: fill-box; transform-origin: center; transition: transform 0.3s var(--ease-spring); }
+.th-logo { transition: transform 0.3s var(--ease-spring); }
+.th-logo .th-mark { transition: transform 0.4s var(--ease-spring); }
+
+.th-logo:hover .th-mark,
+.th-logo:focus-visible .th-mark { transform: rotate(-6deg) scale(1.06); }
+.th-logo:hover .th-mark-bg,
+.th-logo:focus-visible .th-mark-bg { fill: #17503F; }
+.th-logo:hover .th-mark-smile,
+.th-logo:focus-visible .th-mark-smile { opacity: 0.12; }
+.th-logo:hover .th-mark-link,
+.th-logo:focus-visible .th-mark-link { stroke-dashoffset: 0; opacity: 1; }
+/* Your dot squashes as the line leaves it, theirs pops when the line arrives */
+.th-logo:hover .th-mark-you,
+.th-logo:focus-visible .th-mark-you { animation: th-dot-leave 0.45s ease; }
+.th-logo:hover .th-mark-them,
+.th-logo:focus-visible .th-mark-them { animation: th-dot-arrive 0.5s var(--ease-spring) 0.42s both; }
+@keyframes th-dot-leave { 40% { transform: scale(1.25, 0.8); } 100% { transform: scale(1); } }
+@keyframes th-dot-arrive { 0% { transform: scale(1); } 45% { transform: scale(1.45); } 100% { transform: scale(1.12); } }
+.th-logo-word em {
+  background: linear-gradient(90deg, var(--emerald) 0%, var(--lagoon) 50%, var(--emerald) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  background-size: 200% 100%; background-position: 0% 0; transition: background-position 0.6s var(--ease-out);
+}
+.th-logo:hover .th-logo-word em { background-position: 100% 0; }
+
+/* ============================================================
+   3. Trade link: the smile between the two traders
+   ============================================================ */
+.th-tlink {
+  margin-bottom: var(--space-4); padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg); background: var(--paper-raised); border: 1px solid var(--line);
+  box-shadow: var(--shadow-card); overflow: hidden;
+}
+.th-tlink[data-state="linked"], .th-tlink[data-state="done"] { background: var(--grad-soft); border-color: transparent; }
+.th-tlink-row { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: var(--space-2); }
+.th-tlink-node { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 76px; transition: transform 0.6s var(--ease-out), filter 0.6s ease; }
+.th-tlink-dot {
+  display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%;
+  font: 700 17px/1 var(--font-sans); color: var(--on-lime); box-shadow: 0 6px 16px -8px rgba(16, 48, 42, 0.5);
+}
+.th-tlink-you .th-tlink-dot { background: #C8F26A; }
+.th-tlink-them .th-tlink-dot { background: #7ED6B3; }
+.th-tlink-name { font-size: 12px; font-weight: 600; color: var(--ink-muted); max-width: 76px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.th-tlink-bridge { position: relative; height: 100px; margin: 8px -10px 0; min-width: 0; }
+.th-tlink-svg { display: block; overflow: visible; }
+.th-tlink-arc, .th-tlink-half { fill: none; stroke-width: 6; stroke-linecap: round; }
+.th-tlink-arc { stroke: url(#th-tlink-grad); stroke-dasharray: 1; stroke-dashoffset: 0; }
+.th-tlink-half { stroke: var(--line-strong); opacity: 0; transform-box: view-box; }
+.th-tlink-burst { position: absolute; left: 50%; width: 1px; height: 1px; }
+.th-tlink-label {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); white-space: nowrap;
+  font: 700 15px/20px var(--font-display); color: var(--ink);
+}
+
+/* Pending: faint dotted line */
+.th-tlink[data-state="pending"] .th-tlink-arc { stroke: var(--line-strong); stroke-width: 3; stroke-dasharray: 0.012 0.022; opacity: 0.55; animation: th-tlink-wait 2.4s linear infinite; }
+.th-tlink[data-state="pending"] .th-tlink-label { color: var(--ink-muted); font-weight: 600; font-size: 14px; }
+@keyframes th-tlink-wait { to { stroke-dashoffset: -0.068; } }
+
+/* Linked: the line draws itself from you to them */
+.th-tlink[data-play="draw"] .th-tlink-arc,
+.th-tlink[data-play="done"] .th-tlink-arc { animation: th-tlink-draw 0.9s var(--ease-out) 0.15s both; }
+@keyframes th-tlink-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.th-tlink[data-play="draw"] .th-tlink-you .th-tlink-dot { animation: th-node-pop 0.5s var(--ease-spring); }
+.th-tlink[data-play="draw"] .th-tlink-them .th-tlink-dot,
+.th-tlink[data-play="done"] .th-tlink-them .th-tlink-dot { animation: th-node-pop 0.6s var(--ease-spring) 0.9s both; }
+.th-tlink[data-play="done"] .th-tlink-you .th-tlink-dot { animation: th-node-pop 0.6s var(--ease-spring) 0.9s both; }
+@keyframes th-node-pop { 0% { transform: scale(1); } 45% { transform: scale(1.28); } 100% { transform: scale(1); } }
+.th-tlink[data-play="draw"] .th-tlink-label,
+.th-tlink[data-play="done"] .th-tlink-label { animation: th-label-pop 0.55s var(--ease-spring) 0.85s both; }
+@keyframes th-label-pop { from { opacity: 0; transform: translate(-50%, 8px) scale(0.85); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+.th-tlink[data-state="linked"] .th-tlink-dot,
+.th-tlink[data-state="done"] .th-tlink-dot { box-shadow: 0 0 0 5px rgba(126, 214, 179, 0.25), 0 6px 16px -8px rgba(16, 48, 42, 0.5); }
+
+/* Broken: the line snaps in the middle and each half droops */
+.th-tlink[data-state="broken"] .th-tlink-arc { opacity: 0; }
+.th-tlink[data-state="broken"] .th-tlink-half { opacity: 0.55; }
+.th-tlink[data-state="broken"] .th-tlink-half-l { transform: translate(-16px, 2px) rotate(2.5deg); }
+.th-tlink[data-state="broken"] .th-tlink-half-r { transform: translate(16px, 2px) rotate(-2.5deg); }
+.th-tlink[data-state="broken"] .th-tlink-node { filter: grayscale(1); opacity: 0.75; }
+.th-tlink[data-state="broken"] .th-tlink-you { transform: translateX(-6px); }
+.th-tlink[data-state="broken"] .th-tlink-them { transform: translateX(6px); }
+.th-tlink[data-state="broken"] .th-tlink-label { color: var(--ink-muted); font-weight: 600; font-size: 14px; }
+.th-tlink[data-play="snap"] .th-tlink-half-l { animation: th-snap-l 0.9s var(--ease-out) both; }
+.th-tlink[data-play="snap"] .th-tlink-half-r { animation: th-snap-r 0.9s var(--ease-out) both; }
+.th-tlink[data-play="snap"] .th-tlink-row { animation: th-shake 0.35s ease; }
+@keyframes th-snap-l {
+  0% { transform: none; stroke: #7ED6B3; opacity: 1; }
+  25% { transform: rotate(-2deg); stroke: #7ED6B3; opacity: 1; }
+  100% { transform: translate(-16px, 2px) rotate(2.5deg); opacity: 0.55; }
+}
+@keyframes th-snap-r {
+  0% { transform: none; stroke: #7ED6B3; opacity: 1; }
+  25% { transform: rotate(2deg); stroke: #7ED6B3; opacity: 1; }
+  100% { transform: translate(16px, 2px) rotate(-2.5deg); opacity: 0.55; }
+}
+@keyframes th-shake { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.th-tlink-crack { position: absolute; left: 50%; width: 0; height: 0; }
+.th-tlink-crack i { position: absolute; width: 3px; height: 12px; border-radius: 2px; background: var(--line-strong); opacity: 0; }
+.th-tlink[data-play="snap"] .th-tlink-crack i { animation: th-crack 0.6s var(--ease-out) 0.1s; }
+.th-tlink-crack i:nth-child(1) { --r: -40deg; }
+.th-tlink-crack i:nth-child(2) { --r: 0deg; }
+.th-tlink-crack i:nth-child(3) { --r: 40deg; }
+@keyframes th-crack {
+  0% { opacity: 1; transform: rotate(var(--r)) translateY(0); }
+  100% { opacity: 0; transform: rotate(var(--r)) translateY(-22px); }
+}
+@media (max-width: 575.98px) {
+  .th-tlink { padding: var(--space-3); }
+  .th-tlink-node { width: 58px; }
+  .th-tlink-dot { width: 42px; height: 42px; font-size: 14px; }
+}
+
+/* Confetti pieces (created by lib/motion.js) */
+.th-confetti { position: fixed; z-index: 3000; pointer-events: none; will-change: transform, opacity; }
+
+/* ============================================================
+   4. Toasts
+   ============================================================ */
+.th-toasts {
+  position: fixed; z-index: 2500; left: 50%; bottom: var(--space-6); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); width: max-content; max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+@media (max-width: 991.98px) { body:has(.th-tabbar) .th-toasts { bottom: calc(88px + env(safe-area-inset-bottom)); } }
+.th-toast {
+  pointer-events: auto; display: flex; align-items: center; gap: var(--space-3); padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-pill); background: #12352D; color: #F4F5EF; box-shadow: var(--shadow-pop);
+  font-weight: 600; font-size: 14px;
+}
+.th-toast-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #C8F26A; color: #10302A; flex: none; }
+.th-toast[data-tone="info"] .th-toast-icon { background: #DCEEEF; color: #156C74; }
+.th-toast[data-tone="danger"] .th-toast-icon { background: #FDE3E0; color: #B42318; }
+.th-toast-close { display: inline-flex; border: 0; background: transparent; color: inherit; opacity: 0.6; padding: 4px; border-radius: 50%; }
+.th-toast-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+.th-toast-enter-active { transition: transform 0.45s var(--ease-spring), opacity 0.3s ease; }
+.th-toast-leave-active { transition: transform 0.25s ease, opacity 0.25s ease; }
+.th-toast-enter-from { opacity: 0; transform: translateY(24px) scale(0.9); }
+.th-toast-leave-to { opacity: 0; transform: translateY(10px) scale(0.95); }
+
+/* ============================================================
+   5. Page transitions
+   ============================================================ */
+.th-route-enter-active { transition: opacity 0.28s ease, transform 0.35s var(--ease-out); }
+.th-route-leave-active { transition: opacity 0.14s ease; }
+.th-route-enter-from { opacity: 0; transform: translateY(10px); }
+.th-route-leave-to { opacity: 0; }
+
+/* ============================================================
+   6. Trade timeline as a smile that fills up
+   (overrides the bar version in components.css)
+   ============================================================ */
+.th-arcline { position: relative; height: 58px; margin: 6px 12px 40px; }
+.th-arcline-svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.th-arcline-track, .th-arcline-fill { fill: none; stroke-width: 6; stroke-linecap: round; }
+.th-arcline-track { stroke: var(--paper-sunk); }
+.th-arcline-fill {
+  stroke: url(#th-arcline-grad); stroke-dasharray: 1;
+  transition: stroke-dashoffset 1s var(--ease-out); animation: th-arc-fill 1.3s var(--ease-out) 0.1s both;
+}
+@keyframes th-arc-fill { from { stroke-dashoffset: 1; } }
+.th-arcline .th-timeline { display: block; position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.th-arcline .th-step { position: absolute; width: 0; height: 0; display: block; }
+.th-arcline .th-step-bar {
+  position: absolute; left: 0; top: 0; width: 18px; height: 18px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: var(--paper-raised); box-shadow: inset 0 0 0 2px var(--line-strong);
+  transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-spring);
+}
+.th-arcline .th-step[data-state="done"] .th-step-bar { background: #7ED6B3; box-shadow: 0 0 0 3px var(--paper-raised); }
+.th-arcline .th-step:first-child[data-state="done"] .th-step-bar { background: #C8F26A; }
+.th-arcline .th-step[data-state="now"] .th-step-bar {
+  background: var(--paper-raised); box-shadow: inset 0 0 0 4px var(--emerald); transform: translate(-50%, -50%) scale(1.15);
+}
+.th-arcline .th-step[data-state="now"] .th-step-bar::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--emerald);
+  animation: th-ring 1.8s ease-out infinite;
+}
+@keyframes th-ring { from { transform: scale(0.8); opacity: 0.9; } to { transform: scale(1.9); opacity: 0; } }
+.th-arcline .th-step-label {
+  position: absolute; left: 0; top: 16px; transform: translateX(-50%); white-space: nowrap;
+}
+.th-arcline .th-step:first-child .th-step-label { transform: translateX(-12px); }
+.th-arcline .th-step:last-child .th-step-label { transform: translateX(calc(-100% + 12px)); }
+
+/* ============================================================
+   7. Listing cards: tilt + glare, scroll reveal, mutual smile
+   ============================================================ */
+.th-listing.th-tilt { --tilt-x: 0deg; --tilt-y: 0deg; transition: transform 0.25s var(--ease-out), box-shadow 0.25s ease; will-change: transform; }
+.th-listing.th-tilt:hover {
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateY(-4px);
+  transition: transform 0.08s linear, box-shadow 0.25s ease;
+}
+.th-listing.th-tilt::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 0%), rgba(255, 255, 255, 0.35), transparent 55%);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.th-listing.th-tilt:hover::after { opacity: 1; }
+.th-listing-media img { transition: transform 0.6s var(--ease-out); }
+.th-listing:hover .th-listing-media img { transform: scale(1.05); }
+
+.th-reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.6s var(--ease-out); }
+.th-reveal.is-visible { opacity: 1; transform: none; }
+
+.th-listing-mutual { gap: 6px; }
+.th-mini-smile { overflow: visible; }
+.th-mini-smile path { fill: none; stroke: #10302A; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.th-listing:hover .th-mini-smile path { animation: th-mini-draw 0.6s var(--ease-out); }
+@keyframes th-mini-draw { from { stroke-dashoffset: 1; } }
+.th-listing:hover .th-mini-smile circle:last-of-type { animation: th-node-pop 0.4s var(--ease-spring) 0.45s; transform-box: fill-box; transform-origin: center; }
+.th-match-pill { font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   8. Loading skeletons shimmer in the brand colours
+   ============================================================ */
+.th-skeleton {
+  position: relative; overflow: hidden;
+  background: var(--paper-sunk); animation: none;
+}
+.th-skeleton::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 58%;
+  background: color-mix(in srgb, var(--line) 70%, transparent); border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.th-skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(200, 242, 106, 0.28) 40%, rgba(126, 214, 179, 0.35) 50%, transparent 70%);
+  transform: translateX(-100%); animation: th-sweep 1.4s ease-in-out infinite;
+}
+@keyframes th-sweep { to { transform: translateX(100%); } }
+
+/* ============================================================
+   9. Offer a trade: items fly into the tray
+   ============================================================ */
+.th-fly-ghost { border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-pop); }
+.th-counter-num { display: inline-block; min-width: 1ch; }
+.th-pick { transition: border-color 0.2s ease, transform 0.2s var(--ease-spring), box-shadow 0.2s ease; }
+.th-pick:not(.th-pick-static):hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.th-pick.is-selected .th-pick-check { animation: th-node-pop 0.4s var(--ease-spring); }
+.th-swap-disc { transition: transform 0.5s var(--ease-spring), background 0.3s ease, color 0.3s ease; }
+.th-swap-disc.is-ready { background: var(--lime); color: var(--on-lime); }
+.th-swap-disc.is-spinning svg { animation: th-spin 0.7s linear infinite; }
+@keyframes th-spin { to { transform: rotate(360deg); } }
+.btn-offer.is-ready { animation: th-glow 2s ease-in-out infinite; }
+@keyframes th-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(200, 242, 106, 0.0); } 50% { box-shadow: 0 0 0 6px rgba(200, 242, 106, 0.35); } }
+
+/* ============================================================
+   10. Chat: pop-in messages, sending dots, smile tick
+   ============================================================ */
+.th-bubble.is-new { animation: th-bubble-in 0.45s var(--ease-spring) both; }
+.th-bubble-you.is-new { transform-origin: bottom right; }
+.th-bubble-them.is-new { transform-origin: bottom left; }
+@keyframes th-bubble-in { from { opacity: 0; transform: translateY(10px) scale(0.85); } to { opacity: 1; transform: none; } }
+.th-chat-event.is-new { animation: th-event-in 0.6s var(--ease-spring) both; }
+@keyframes th-event-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+.th-bubble-time { display: flex; align-items: center; gap: 4px; }
+.th-bubble-you .th-bubble-time { justify-content: flex-end; }
+.th-sent-smile { flex: none; overflow: visible; }
+.th-sent-smile circle { fill: var(--lime-ink); }
+.th-sent-smile path { fill: none; stroke: var(--lime-ink); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 1; }
+.th-bubble.is-new .th-sent-smile path { animation: th-mini-draw 0.5s var(--ease-out) 0.25s both; }
+.th-typing { display: inline-flex; gap: 4px; align-items: center; padding: 12px 14px; opacity: 0.85; }
+.th-typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--lime-ink); animation: th-typing 1s ease-in-out infinite; }
+.th-typing i:nth-child(2) { animation-delay: 0.15s; }
+.th-typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes th-typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
+.th-send { transition: transform 0.2s var(--ease-spring), background 0.2s ease; overflow: hidden; }
+.th-send:not(:disabled):hover { transform: scale(1.08); background-image: var(--grad-button); }
+.th-send.is-sending svg { animation: th-send-fly 0.6s var(--ease-out); }
+@keyframes th-send-fly { 0% { transform: none; } 45% { transform: translate(22px, -22px); opacity: 0; } 46% { transform: translate(-22px, 22px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+/* ============================================================
+   Small touches
+   ============================================================ */
+.th-chip { transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease-spring); }
+.th-chip:active { transform: scale(0.94); }
+.th-chip[aria-pressed="true"] { background-image: var(--grad-button); border-color: transparent; }
+[data-theme="dark"] .th-chip[aria-pressed="true"] { background-image: none; }
+.th-filler-icon { transition: transform 0.4s var(--ease-spring); }
+.th-filler:hover .th-filler-icon { transform: rotate(-12deg) scale(1.12); }
+.th-pager-btn:not(:disabled):hover { transform: scale(1.1); }
+
+/* ============================================================
+   Reduce motion: switch everything above off
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; }
+  .th-reveal { opacity: 1; transform: none; }
+  .th-hero::before, .th-hero::after, .th-skeleton::after { animation: none !important; }
+}
