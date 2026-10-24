@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
 import ItemPicker from '@/components/ItemPicker.vue'
@@ -11,11 +11,13 @@ import InspectionChecklist from '@/components/InspectionChecklist.vue'
 import TradeTimeline from '@/components/TradeTimeline.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
-import TradeLink from '@/components/TradeLink.vue'
+import TradeMoment from '@/components/TradeMoment.vue'
+import AddMoreRequests from '@/components/AddMoreRequests.vue'
 import { showToast } from '@/lib/toast'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 
 const trade = ref(null)
 const error = ref('')
@@ -52,21 +54,106 @@ const timelineStep = computed(() => {
 })
 const isClosed = computed(() => ['rejected', 'cancelled'].includes(trade.value.status))
 
-// State of the smile link between the two traders (see TradeLink.vue)
-const linkState = computed(() => {
-  const status = trade.value.status
-  if (status === 'completed') return 'done'
-  if (status === 'accepted') return 'linked'
-  if (isClosed.value) return 'broken'
-  return 'pending'
-})
+// ---------- The pop-up moment (TradeMoment.vue) ----------
+// Shown when the trade is accepted (the smile connects you both) or called off (it snaps).
+// Both sides see it: live if the page is open, or once the next time they open an accepted trade.
+const moment = ref(null) // null | { kind: 'linked' | 'broken', title }
+let iDidIt = false // so your own decline/withdraw gets a quiet toast instead of the full pop-up
+
+const seenKey = () => `th-linked-${trade.value._id}`
+function markSeen() {
+  try {
+    localStorage.setItem(seenKey(), '1')
+  } catch {
+    // Private mode etc.: worst case the pop-up shows again next time
+  }
+}
+function alreadySeen() {
+  try {
+    return localStorage.getItem(seenKey()) === '1'
+  } catch {
+    return false
+  }
+}
+
+function showLinked() {
+  moment.value = { kind: 'linked' }
+  markSeen()
+}
+
+watch(
+  () => trade.value?.status,
+  (now, before) => {
+    if (!now) return
+    // First load: celebrate an accepted trade you haven't seen yet (e.g. the seller accepted while you were away)
+    if (!before) {
+      if (now === 'accepted' && !alreadySeen()) showLinked()
+      return
+    }
+    const wasOpen = ['pending', 'countered'].includes(before)
+    if (wasOpen && now === 'accepted') showLinked()
+    else if (before === 'accepted' && now === 'cancelled') moment.value = { kind: 'broken', title: 'Trade cancelled' }
+    else if (wasOpen && (now === 'rejected' || now === 'cancelled') && !iDidIt) {
+      moment.value =
+        now === 'rejected'
+          ? { kind: 'declined', title: 'Proposal declined' }
+          : { kind: 'broken', title: 'Proposal withdrawn' }
+    }
+    iDidIt = false
+  },
+)
+
+// Declined pop-up: try again for the same item, or go back to browsing
+function retryOffer() {
+  const item = theirItems.value[0]
+  moment.value = null
+  router.push(item ? `/listings/${item._id}/propose` : '/discover')
+}
+function keepBrowsing() {
+  moment.value = null
+  router.push('/discover')
+}
+
+// "Pick a meetup spot": close the pop-up and scroll to the meetup card
+async function goToMeetup() {
+  moment.value = null
+  await nextTick()
+  document.querySelector('.th-meetup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 async function loadTrade() {
   try {
     const response = await api.get(`/trades/${route.params.id}`)
     trade.value = response.data
+    findNewerTrade()
   } catch (e) {
     error.value = errorMessage(e)
+  }
+}
+
+// On a cancelled/declined trade: is there a newer trade with the same person for the same item?
+// (e.g. you cancelled, then made a new offer.) If so, show a link to it.
+const newerTrade = ref(null)
+async function findNewerTrade() {
+  newerTrade.value = null
+  if (!isClosed.value) return
+  try {
+    const { data: trades } = await api.get('/trades')
+    const people = (t) => [t.proposer._id, t.receiver._id].sort().join(':')
+    const items = (t) => [...t.requestedListings, ...t.offeredListings].filter(Boolean).map((l) => l._id)
+    const mine = new Set(items(trade.value))
+    newerTrade.value =
+      trades
+        .filter(
+          (t) =>
+            t._id !== trade.value._id &&
+            new Date(t.createdAt) > new Date(trade.value.createdAt) &&
+            people(t) === people(trade.value) &&
+            items(t).some((id) => mine.has(id)),
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null
+  } catch {
+    // Not important enough to show an error
   }
 }
 
@@ -84,10 +171,12 @@ async function action(method, path, body) {
 }
 
 async function acceptTrade() {
-  if (await action('post', 'accept')) showToast(`It's a deal! You and ${otherName.value} are linked.`)
+  // The pop-up appears from the status watcher above
+  await action('post', 'accept')
 }
 
 async function rejectTrade() {
+  iDidIt = true
   if (await action('post', 'reject')) showToast('Proposal declined.', { tone: 'info', icon: 'x' })
 }
 
@@ -99,7 +188,11 @@ async function confirmHandover() {
 
 async function cancelTrade() {
   if (!confirm('Cancel this trade?')) return
-  if (await action('post', 'cancel')) showToast('Trade cancelled. The items are available again.', { tone: 'info', icon: 'x' })
+  // Withdrawing your own open proposal is quiet; cancelling an accepted trade shows the link snapping
+  iDidIt = isOpen.value
+  if ((await action('post', 'cancel')) && iDidIt) {
+    showToast('Proposal withdrawn.', { tone: 'info', icon: 'x' })
+  }
 }
 
 // Counter offer: load both users' available items so either side can be changed
@@ -144,17 +237,33 @@ onMounted(loadTrade)
         <StatusBadge :status="trade.status" />
       </div>
     </header>
-    <!-- The smile links you and them when the trade is accepted, and breaks if it is cancelled -->
-    <TradeLink
+    <!-- Pop-up when the trade is accepted (smile connects) or called off (smile snaps) -->
+    <TradeMoment
+      v-if="moment"
+      :kind="moment.kind"
+      :broken-title="moment.title"
       :you="auth.user.name"
       :them="otherName"
-      :state="linkState"
-      :broken-label="trade.status === 'rejected' ? 'Proposal declined' : 'Trade cancelled'"
+      :give="myItems.map((l) => l.title)"
+      :get="theirItems.map((l) => l.title)"
+      @close="moment = null"
+      @next="goToMeetup"
+      @retry="retryOffer"
+      @browse="keepBrowsing"
     />
     <TradeTimeline v-if="!isClosed" :current="timelineStep" class="mb-4" />
     <div v-else class="alert alert-light mb-4">
       This trade was {{ trade.status === 'rejected' ? 'declined' : 'cancelled' }}. The items are available again.
     </div>
+    <!-- You made a new offer for the same item after this one was closed: point to it -->
+    <RouterLink v-if="newerTrade" :to="`/trades/${newerTrade._id}`" class="th-newer-trade mb-4">
+      <span class="th-newer-icon"><AppIcon name="swap" :size="18" /></span>
+      <span class="th-newer-text">
+        <b>There's a newer trade for this item</b>
+        <span>This one is closed. Your latest offer with {{ otherName }} is {{ newerTrade.status === 'accepted' ? 'accepted' : newerTrade.status === 'completed' ? 'complete' : 'open' }}.</span>
+      </span>
+      <span class="th-newer-go">Go to it<AppIcon name="back" :size="16" class="th-flip" /></span>
+    </RouterLink>
 
     <div class="row g-4">
       <!-- Left: the offer and actions -->
@@ -189,6 +298,15 @@ onMounted(loadTrade)
               </RouterLink>
             </div>
           </div>
+
+          <!-- "Could you add more?": ask the other trader to add items, or answer their request -->
+          <AddMoreRequests
+            v-if="isOpen && !countering"
+            :trade="trade"
+            :me-id="auth.user._id"
+            :other-name="otherName"
+            @updated="trade = $event"
+          />
 
           <!-- Respond to an open proposal -->
           <div v-if="isOpen" class="th-proposal-foot">

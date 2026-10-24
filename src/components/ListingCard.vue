@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { vTilt, countUp, whenVisible, prefersReducedMotion } from '@/lib/motion'
 import StatusBadge from './StatusBadge.vue'
@@ -14,6 +14,9 @@ const props = defineProps({
   mutual: Boolean,
   showStatus: Boolean,
 })
+
+// Colour of the match pill: green for strong matches, yellow for medium, soft teal for low (never red)
+const matchLevel = computed(() => (props.score >= 70 ? 'high' : props.score >= 40 ? 'medium' : 'low'))
 
 // The match % counts up from 0 the first time the card scrolls into view
 const shownScore = ref(props.score)
@@ -35,7 +38,10 @@ onUnmounted(() => stopWatching())
         <AppIcon name="image" :size="28" />
         <span>No photo yet</span>
       </div>
-      <span v-if="score" ref="pill" class="th-match-pill">{{ shownScore }}% match</span>
+      <span v-if="score" ref="pill" class="th-match-pill" :data-level="matchLevel">{{ shownScore }}% match</span>
+      <span v-if="listing.images?.length > 1" class="th-photo-count" :aria-label="`${listing.images.length} photos`">
+        <AppIcon name="image" :size="14" />{{ listing.images.length }}
+      </span>
       <span v-if="mutual" class="th-badge th-badge-mutual th-listing-mutual">
         <!-- Mini logo smile: draws from one dot to the other when you hover the card -->
         <svg class="th-mini-smile" width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">

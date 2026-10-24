@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bus = require('../utils/events');
 
 const messageSchema = new mongoose.Schema({
     trade: { type: mongoose.Schema.Types.ObjectId, ref: 'Trade', required: true },
@@ -22,7 +23,15 @@ exports.getMessages = (tradeId, after) => {
     return Message.find(filter).populate('sender', 'name').sort({ createdAt: 1 });
 };
 
-exports.addMessage = (data) => Message.create(data);
+// Every new message is also announced on the event bus, for live notifications
+exports.addMessage = async (data) => {
+    const message = await Message.create(data);
+    bus.emit('message', message);
+    return message;
+};
 
-exports.addSystemMessage = (tradeId, text) =>
-    Message.create({ trade: tradeId, text, type: 'system' });
+exports.addSystemMessage = async (tradeId, text) => {
+    const message = await Message.create({ trade: tradeId, text, type: 'system' });
+    bus.emit('message', message);
+    return message;
+};

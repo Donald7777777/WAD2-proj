@@ -7,9 +7,12 @@ export const toasts = reactive([])
 let nextId = 1
 
 // tone: 'success' (green), 'info' (neutral) or 'danger' (red)
-export function showToast(text, { tone = 'success', icon = 'check', duration = 3500 } = {}) {
+// title: optional bold first line; onClick: makes the toast clickable (e.g. open the trade)
+export function showToast(text, { tone = 'success', icon = 'check', duration = 3500, title = '', onClick = null } = {}) {
   const id = nextId++
-  toasts.push({ id, text, tone, icon })
+  // Keep at most 3 on screen
+  if (toasts.length >= 3) toasts.shift()
+  toasts.push({ id, text, tone, icon, title, onClick })
   setTimeout(() => dismissToast(id), duration)
 }
 

@@ -6,6 +6,15 @@ const checklistItemSchema = new mongoose.Schema({
     receiverChecked: { type: Boolean, default: false }
 }, { _id: false });
 
+// "Could you add more?": one trader asks the other to add items from their side
+const addRequestSchema = new mongoose.Schema({
+    by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    // Items of the other trader they'd like added (can be empty if they only left a note)
+    listings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }],
+    note: { type: String, default: '' },
+    status: { type: String, enum: ['open', 'added', 'declined'], default: 'open' }
+}, { timestamps: true });
+
 const tradeSchema = new mongoose.Schema({
     proposer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -32,7 +41,8 @@ const tradeSchema = new mongoose.Schema({
     },
     checklist: [checklistItemSchema],
     proposerConfirmed: { type: Boolean, default: false },
-    receiverConfirmed: { type: Boolean, default: false }
+    receiverConfirmed: { type: Boolean, default: false },
+    requests: { type: [addRequestSchema], default: [] }
 }, { timestamps: true });
 
 const Trade = mongoose.model('Trade', tradeSchema);
@@ -43,7 +53,8 @@ const populateFields = [
     { path: 'proposer', select: 'name' },
     { path: 'receiver', select: 'name' },
     { path: 'requestedListings' },
-    { path: 'offeredListings' }
+    { path: 'offeredListings' },
+    { path: 'requests.listings' }
 ];
 
 exports.findById = (id) => Trade.findById(id).populate(populateFields);

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import AppIcon from './AppIcon.vue'
 import UserAvatar from './UserAvatar.vue'
 import LogoMark from './LogoMark.vue'
+import NotificationBell from './NotificationBell.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -37,6 +38,8 @@ async function logout() {
           <RouterLink class="btn btn-offer btn-sm d-none d-lg-inline-flex" to="/listings/new">
             <AppIcon name="plus" :size="16" />List an item
           </RouterLink>
+
+          <NotificationBell />
 
           <div class="dropdown">
             <button

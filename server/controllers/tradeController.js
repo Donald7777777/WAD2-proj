@@ -197,6 +197,112 @@ exports.counterTrade = async (req, res) => {
     }
 };
 
+// ---------- "Could you add more?" ----------
+// POST /api/trades/:id/requests  { listingIds: [...], note }
+// While a proposal is open, either trader can ask the other to add more of their items,
+// e.g. "I'd also like your top". The other trader then adds them (or other items) or declines.
+exports.requestMore = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const trade = await getParticipantTrade(req, res);
+        if (!trade) return;
+        if (!['pending', 'countered'].includes(trade.status)) {
+            return res.status(400).json({ error: 'You can only ask for more while the proposal is open.' });
+        }
+        if (trade.requests.some((r) => r.status === 'open' && idOf(r.by) === userId)) {
+            return res.status(400).json({ error: 'You already have a request waiting for an answer.' });
+        }
+
+        const listingIds = Array.isArray(req.body.listingIds) ? req.body.listingIds.map(String) : [];
+        const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
+        if (listingIds.length === 0 && !note) {
+            return res.status(400).json({ error: 'Pick an item or write what you would like.' });
+        }
+
+        const otherId = otherUserId(trade, userId);
+        const inTrade = new Set([...trade.requestedListings, ...trade.offeredListings].map(idOf));
+        let listings = [];
+        if (listingIds.length) {
+            listings = await loadOwnedAvailable(listingIds, otherId);
+            if (!listings || listingIds.some((id) => inTrade.has(id))) {
+                return res.status(400).json({ error: 'Some of those items are not available to add.' });
+            }
+        }
+
+        trade.requests.push({ by: userId, listings: listingIds, note });
+        await trade.save();
+
+        const otherName = isProposer(trade, userId) ? trade.receiver.name : trade.proposer.name;
+        const what = listings.length ? titlesOf(listings) : 'more items';
+        await Message.addSystemMessage(trade._id,
+            `${req.session.userName} asked ${otherName} to add ${what} to the trade.${note ? ` "${note}"` : ''}`);
+        res.status(201).json(await Trade.findById(trade._id));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to send your request.' });
+    }
+};
+
+// POST /api/trades/:id/requests/:requestId/respond  { accept: true|false, listingIds? }
+// The other trader answers. Adding items changes the deal, so (like a counter offer)
+// it becomes the asker's turn to accept the new version.
+exports.respondToRequest = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const trade = await getParticipantTrade(req, res);
+        if (!trade) return;
+        const request = trade.requests.id(req.params.requestId);
+        if (!request || request.status !== 'open') {
+            return res.status(404).json({ error: 'This request has already been answered.' });
+        }
+        if (idOf(request.by) === userId) {
+            return res.status(400).json({ error: 'The other trader needs to answer this request.' });
+        }
+        if (!['pending', 'countered'].includes(trade.status)) {
+            return res.status(400).json({ error: 'This proposal is no longer open.' });
+        }
+
+        if (!req.body.accept) {
+            request.status = 'declined';
+            await trade.save();
+            const titles = request.listings.length ? titlesOf(request.listings) : 'more items';
+            await Message.addSystemMessage(trade._id, `${req.session.userName} declined to add ${titles}.`);
+            return res.json(await Trade.findById(trade._id));
+        }
+
+        // Add the requested items, or the ones the responder picked instead
+        const chosen = Array.isArray(req.body.listingIds) && req.body.listingIds.length
+            ? req.body.listingIds.map(String)
+            : request.listings.map(idOf);
+        if (chosen.length === 0) {
+            return res.status(400).json({ error: 'Pick at least one of your items to add.' });
+        }
+        const inTrade = new Set([...trade.requestedListings, ...trade.offeredListings].map(idOf));
+        const listings = await loadOwnedAvailable(chosen, userId);
+        if (!listings || chosen.some((id) => inTrade.has(id))) {
+            return res.status(400).json({ error: 'Some of those items are no longer available.' });
+        }
+
+        // The responder's items go on their side of the trade
+        if (isProposer(trade, userId)) {
+            trade.offeredListings = [...trade.offeredListings.map(idOf), ...chosen];
+        } else {
+            trade.requestedListings = [...trade.requestedListings.map(idOf), ...chosen];
+        }
+        request.status = 'added';
+        trade.status = 'countered';
+        trade.turn = idOf(request.by);
+        await trade.save();
+
+        await Message.addSystemMessage(trade._id,
+            `${req.session.userName} added ${titlesOf(listings)} to the trade. Over to you to accept.`);
+        res.json(await Trade.findById(trade._id));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to answer the request.' });
+    }
+};
+
 exports.cancelTrade = async (req, res) => {
     try {
         const trade = await getParticipantTrade(req, res);

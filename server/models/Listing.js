@@ -8,7 +8,10 @@ const listingSchema = new mongoose.Schema({
     condition: { type: String, required: true },
     // What the owner would like in return, e.g. "film lenses, turntable"
     lookingFor: { type: String, default: '' },
-    // Image is stored in Supabase Storage; we keep its path and public URL
+    // Images are stored in Supabase Storage; we keep each one's path and public URL.
+    // `images` holds all photos (first = cover). imagePath/imageUrl always mirror the cover,
+    // so everything that shows a single photo (cards, trades) keeps working.
+    images: { type: [{ path: { type: String, default: '' }, url: { type: String, required: true }, _id: false }], default: [] },
     imagePath: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
     // available -> reserved (trade accepted) -> traded (handover confirmed)

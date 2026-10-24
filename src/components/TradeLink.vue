@@ -7,11 +7,12 @@ import { useWidth, bezierPoint, toPath } from '@/lib/useWidth'
 //   pending -> faint dotted arc (proposal still open)
 //   linked  -> the arc draws itself from you to them, dots pop, confetti (trade accepted)
 //   done    -> same as linked, labelled "Traded!"
-//   broken  -> the arc snaps in the middle and droops (cancelled / declined)
+//   broken  -> the arc snaps in the middle and droops (cancelled)
+//   declined -> a line reaches out from you, falls short and fades; they shake their head
 const props = defineProps({
   you: { type: String, required: true },
   them: { type: String, required: true },
-  state: { type: String, default: 'pending' }, // 'pending' | 'linked' | 'done' | 'broken'
+  state: { type: String, default: 'pending' }, // 'pending' | 'linked' | 'done' | 'broken' | 'declined'
   brokenLabel: { type: String, default: 'Trade cancelled' },
 })
 
@@ -58,6 +59,7 @@ const label = computed(
       linked: "It's a deal!",
       done: 'Traded!',
       broken: props.brokenLabel,
+      declined: props.brokenLabel,
     })[props.state],
 )
 
@@ -66,8 +68,8 @@ async function animate(kind, withConfetti) {
   await nextTick()
   requestAnimationFrame(() => {
     play.value = kind
-    // Burst once the line has nearly reached the other dot
-    if (withConfetti) setTimeout(() => confetti(burstPoint.value), 650)
+    // Burst as the line reaches the other dot
+    if (withConfetti) setTimeout(() => confetti(burstPoint.value), 1000)
   })
 }
 
@@ -83,6 +85,7 @@ watch(
     if ((now === 'linked' || now === 'done') && before === 'pending') animate('draw', true)
     else if (now === 'done' && before === 'linked') animate('done', true)
     else if (now === 'broken') animate('snap', false)
+    else if (now === 'declined') animate('decline', false)
   },
 )
 </script>

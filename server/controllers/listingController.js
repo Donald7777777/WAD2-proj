@@ -3,11 +3,51 @@ const User = require('../models/User');
 const { Trade } = require('../models/Trade');
 const { rankMatches } = require('../utils/matching');
 
+const MAX_IMAGES = 6;
+
+// Photos from the request: an `images` array of { path, url } (first = cover),
+// or the older single imagePath/imageUrl. Returns null if neither was sent.
+function readImages(body) {
+    if (Array.isArray(body.images)) {
+        return body.images
+            .filter((img) => img && typeof img.url === 'string' && /^https?:\/\//.test(img.url))
+            .slice(0, MAX_IMAGES)
+            .map((img) => ({ path: typeof img.path === 'string' ? img.path : '', url: img.url }));
+    }
+    if (typeof body.imageUrl === 'string' && body.imageUrl) {
+        return [{ path: typeof body.imagePath === 'string' ? body.imagePath : '', url: body.imageUrl }];
+    }
+    return null;
+}
+
+// imagePath/imageUrl always mirror the cover photo
+function withCover(images) {
+    return { images, imagePath: images[0]?.path || '', imageUrl: images[0]?.url || '' };
+}
+
+// All photos of a listing, including ones saved before multiple photos existed
+function allImages(listing) {
+    if (listing.images?.length) return listing.images;
+    return listing.imageUrl ? [{ path: listing.imagePath, url: listing.imageUrl }] : [];
+}
+
 const CATEGORIES = ['Cameras', 'Tech', 'Music', 'Books', 'Clothing', 'Outdoors', 'Home', 'Toys', 'Other'];
 const CONDITIONS = ['Like new', 'Excellent', 'Good', 'Fair'];
 
+// MongoDB ids are 24 hex characters; anything else can't match a listing
+function isValidId(id) {
+    return typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
+}
+
+// Treat missing or non-text values as empty, and ignore surrounding spaces
+function text(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
 function validateListing(body) {
-    const { title, description, category, condition } = body;
+    const title = text(body.title);
+    const description = text(body.description);
+    const { category, condition } = body;
     if (!title || !description || !category || !condition) {
         return 'Title, description, category and condition are required.';
     }
@@ -24,7 +64,12 @@ function validateListing(body) {
 // e.g. /api/listings?category=Tech&search=keyboard&sort=newest&owner=<id>
 exports.getAllListings = async (req, res) => {
     try {
-        const { category, search, sort, owner } = req.query;
+        // A repeated query param (?search=a&search=b) arrives as an array; use the first value
+        const first = (value) => (Array.isArray(value) ? value[0] : value);
+        const category = first(req.query.category);
+        const search = text(first(req.query.search));
+        const sort = first(req.query.sort);
+        const owner = first(req.query.owner);
         const filter = { status: 'available' };
 
         if (category && category !== 'All') {
@@ -38,6 +83,9 @@ exports.getAllListings = async (req, res) => {
         }
 
         if (owner) {
+            if (!isValidId(owner)) {
+                return res.status(400).json({ error: 'Invalid owner id.' });
+            }
             filter.owner = owner;
         } else if (req.session.userId) {
             // Don't show users their own items on the discover page
@@ -65,6 +113,9 @@ exports.getMyListings = async (req, res) => {
 
 exports.getListingById = async (req, res) => {
     try {
+        if (!isValidId(req.params.id)) {
+            return res.status(404).json({ error: 'Listing not found.' });
+        }
         const listing = await Listing.findById(req.params.id);
         if (!listing) {
             return res.status(404).json({ error: 'Listing not found.' });
@@ -85,13 +136,12 @@ exports.createListing = async (req, res) => {
 
         const listing = await Listing.addListing({
             owner: req.session.userId,
-            title: req.body.title.trim(),
-            description: req.body.description.trim(),
+            title: text(req.body.title),
+            description: text(req.body.description),
             category: req.body.category,
             condition: req.body.condition,
-            lookingFor: (req.body.lookingFor || '').trim(),
-            imagePath: req.body.imagePath || '',
-            imageUrl: req.body.imageUrl || ''
+            lookingFor: text(req.body.lookingFor),
+            ...withCover(readImages(req.body) || [])
         });
         res.status(201).json(listing);
     } catch (err) {
@@ -102,13 +152,16 @@ exports.createListing = async (req, res) => {
 
 exports.updateListing = async (req, res) => {
     try {
+        if (!isValidId(req.params.id)) {
+            return res.status(404).json({ error: 'Listing not found.' });
+        }
         const listing = await Listing.findById(req.params.id);
         if (!listing) {
             return res.status(404).json({ error: 'Listing not found.' });
         }
 
         // Only the owner can edit, and only while nothing is agreed on it
-        if (listing.owner._id.toString() !== req.session.userId) {
+        if (String(listing.owner?._id) !== req.session.userId) {
             return res.status(403).json({ error: 'You are not allowed to edit this listing.' });
         }
         if (listing.status !== 'available') {
@@ -121,13 +174,13 @@ exports.updateListing = async (req, res) => {
         }
 
         const updated = await Listing.editListing(req.params.id, {
-            title: req.body.title.trim(),
-            description: req.body.description.trim(),
+            title: text(req.body.title),
+            description: text(req.body.description),
             category: req.body.category,
             condition: req.body.condition,
-            lookingFor: (req.body.lookingFor || '').trim(),
-            imagePath: req.body.imagePath ?? listing.imagePath,
-            imageUrl: req.body.imageUrl ?? listing.imageUrl
+            lookingFor: text(req.body.lookingFor),
+            // Photos not sent = keep the current ones
+            ...withCover(readImages(req.body) ?? allImages(listing))
         });
         res.json(updated);
     } catch (err) {
@@ -138,11 +191,14 @@ exports.updateListing = async (req, res) => {
 
 exports.deleteListing = async (req, res) => {
     try {
+        if (!isValidId(req.params.id)) {
+            return res.status(404).json({ error: 'Listing not found.' });
+        }
         const listing = await Listing.findById(req.params.id);
         if (!listing) {
             return res.status(404).json({ error: 'Listing not found.' });
         }
-        if (listing.owner._id.toString() !== req.session.userId) {
+        if (String(listing.owner?._id) !== req.session.userId) {
             return res.status(403).json({ error: 'You are not allowed to delete this listing.' });
         }
         if (listing.status === 'reserved') {
@@ -157,8 +213,9 @@ exports.deleteListing = async (req, res) => {
         }
 
         await Listing.deleteListing(req.params.id);
-        // The frontend uses imagePath to remove the photo from Supabase
-        res.json({ message: 'Listing deleted.', imagePath: listing.imagePath });
+        // The frontend uses these paths to remove the photos from Supabase
+        const imagePaths = allImages(listing).map((img) => img.path).filter(Boolean);
+        res.json({ message: 'Listing deleted.', imagePath: listing.imagePath, imagePaths });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to delete listing.' });
