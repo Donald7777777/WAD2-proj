@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const checklistItemSchema = new mongoose.Schema({
     text: String,
+    // Which item this check is for (empty for the general checks at the end)
+    listing: { type: mongoose.Schema.Types.ObjectId, ref: 'Listing' },
+    item: { type: String, default: '' },
+    category: { type: String, default: '' },
+    owner: { type: String, default: '' },
     proposerChecked: { type: Boolean, default: false },
     receiverChecked: { type: Boolean, default: false }
 }, { _id: false });
