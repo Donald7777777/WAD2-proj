@@ -13,6 +13,8 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import TradeMoment from '@/components/TradeMoment.vue'
 import AddMoreRequests from '@/components/AddMoreRequests.vue'
+import ReviewForm from '@/components/ReviewForm.vue'
+import StarRating from '@/components/StarRating.vue'
 import { showToast } from '@/lib/toast'
 
 const auth = useAuthStore()
@@ -30,7 +32,8 @@ const counterOffered = ref([])
 const counterRequested = ref([])
 
 const isProposer = computed(() => trade.value.proposer._id === auth.user._id)
-const otherName = computed(() => (isProposer.value ? trade.value.receiver.name : trade.value.proposer.name))
+const otherUser = computed(() => (isProposer.value ? trade.value.receiver : trade.value.proposer))
+const otherName = computed(() => otherUser.value.name)
 const myItems = computed(() => (isProposer.value ? trade.value.offeredListings : trade.value.requestedListings))
 const theirItems = computed(() => (isProposer.value ? trade.value.requestedListings : trade.value.offeredListings))
 const isOpen = computed(() => ['pending', 'countered'].includes(trade.value.status))
@@ -53,6 +56,9 @@ const timelineStep = computed(() => {
   return allTicked ? 4 : 3
 })
 const isClosed = computed(() => ['rejected', 'cancelled'].includes(trade.value.status))
+// Competing offer: my items here are already reserved for another accepted trade.
+// Accepting this one switches to it, and that other trade is cancelled.
+const myReserved = computed(() => (isOpen.value ? myItems.value.filter((l) => l.status === 'reserved') : []))
 
 // ---------- The pop-up moment (TradeMoment.vue) ----------
 // Shown when the trade is accepted (the smile connects you both) or called off (it snaps).
@@ -93,13 +99,73 @@ watch(
     const wasOpen = ['pending', 'countered'].includes(before)
     if (wasOpen && now === 'accepted') showLinked()
     else if (before === 'accepted' && now === 'cancelled') moment.value = { kind: 'broken', title: 'Trade cancelled' }
-    else if (wasOpen && (now === 'rejected' || now === 'cancelled') && !iDidIt) {
-      moment.value =
-        now === 'rejected'
-          ? { kind: 'declined', title: 'Proposal declined' }
-          : { kind: 'broken', title: 'Proposal withdrawn' }
-    }
+    // Withdrawn (by you or them): the same snapping-smile pop-up as a cancelled trade
+    else if (wasOpen && now === 'cancelled') moment.value = { kind: 'broken', title: 'Proposal withdrawn' }
+    // Declined by them (declining someone yourself just shows a small notification)
+    else if (wasOpen && now === 'rejected' && !iDidIt) moment.value = { kind: 'declined', title: 'Proposal declined' }
+    // Handover done by both: the big "Congratulations!" pop-up with the rating form
+    else if (before === 'accepted' && now === 'completed') showCompleted()
     iDidIt = false
+  },
+)
+
+// ---------- After the handover: rate the other trader ----------
+const myReview = ref(null) // the review I left on this trade (null = not yet)
+const reviewChecked = ref(false)
+const reviewKey = () => `th-rated-${trade.value._id}`
+async function loadMyReview() {
+  if (trade.value.status !== 'completed') return
+  try {
+    const { data } = await api.get(`/trades/${trade.value._id}/review`)
+    myReview.value = data.review
+  } catch {
+    // The rating card just won't show
+  }
+  reviewChecked.value = true
+}
+async function showCompleted() {
+  await loadMyReview()
+  if (!myReview.value) moment.value = { kind: 'completed', title: 'Congratulations!' }
+}
+function onReviewed(review) {
+  myReview.value = review
+  showToast(`Thanks! Your review of ${otherName.value} is on their profile.`, { icon: 'star' })
+}
+// Closing the pop-up without rating: don't show it again on this device (the card on the page stays)
+function closeMoment() {
+  if (moment.value?.kind === 'completed') {
+    try {
+      localStorage.setItem(reviewKey(), '1')
+    } catch {
+      // Private mode: it may show once more
+    }
+  }
+  moment.value = null
+}
+function dismissedRating() {
+  try {
+    return localStorage.getItem(reviewKey()) === '1'
+  } catch {
+    return false
+  }
+}
+
+// ---------- Meetup changed by the other person ----------
+// The bell stays quiet while you're on this trade, so say it here
+watch(
+  () => trade.value?.meetup && `${trade.value.meetup.name}|${trade.value.meetup.date}|${trade.value.meetup.time}`,
+  (now, before) => {
+    const m = trade.value?.meetup
+    if (!before || !now || now === before || !m?.name || String(m.setBy) === auth.user._id) return
+    if (!before.split('|')[0]) return // first time it was set
+    const when = [m.date, m.time].filter(Boolean).join(' at ')
+    showToast(`${m.name}${when ? `, ${when}` : ''}`, {
+      title: `${otherName.value} changed the meetup`,
+      icon: 'pin',
+      tone: 'danger',
+      duration: 7000,
+      onClick: () => document.querySelector('.th-meetup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    })
   },
 )
 
@@ -124,8 +190,14 @@ async function goToMeetup() {
 async function loadTrade() {
   try {
     const response = await api.get(`/trades/${route.params.id}`)
+    const first = !trade.value
     trade.value = response.data
     findNewerTrade()
+    // Opening a completed trade you haven't rated yet: show the pop-up once
+    if (first && trade.value.status === 'completed') {
+      await loadMyReview()
+      if (!myReview.value && !dismissedRating()) moment.value = { kind: 'completed', title: 'Congratulations!' }
+    }
   } catch (e) {
     error.value = errorMessage(e)
   }
@@ -158,19 +230,56 @@ async function findNewerTrade() {
 }
 
 // Shared helper for accept / reject / cancel / confirm etc.
-async function action(method, path, body) {
+// Ticking the checklist and confirming are safe to repeat, so a clash just retries once
+const RETRY_ON_CLASH = ['checklist', 'confirm']
+async function action(method, path, body, retried = false) {
   error.value = ''
   try {
     const response = await api[method](`/trades/${trade.value._id}/${path}`, body)
     trade.value = response.data
     return true
   } catch (e) {
+    // 409: the other person changed the trade at the same moment
+    if (e.response?.status === 409) {
+      await loadTrade()
+      if (!retried && RETRY_ON_CLASH.includes(path)) return action(method, path, body, true)
+    }
     error.value = errorMessage(e)
     return false
   }
 }
 
+// ---------- Edit my offer (while waiting for their answer) ----------
+const editingOffer = ref(false)
+const editItems = ref([])
+const editPicked = ref([])
+async function startEditOffer() {
+  error.value = ''
+  try {
+    const { data } = await api.get('/listings/mine')
+    const inTrade = new Set(trade.value.offeredListings.map((l) => l._id))
+    // Your free items, plus the ones already in this offer
+    editItems.value = data.filter((l) => l.status === 'available' || inTrade.has(l._id))
+    editPicked.value = [...inTrade]
+    editingOffer.value = true
+  } catch (e) {
+    error.value = errorMessage(e)
+  }
+}
+async function saveEditOffer() {
+  if (await action('put', 'offer', { offeredListingIds: editPicked.value })) {
+    editingOffer.value = false
+    showToast(`Offer updated. ${otherName.value} will see the change.`, { icon: 'edit' })
+  }
+}
+
 async function acceptTrade() {
+  if (
+    myReserved.value.length &&
+    !confirm(`${myReserved.value.map((l) => l.title).join(', ')} is reserved for another accepted trade. Accept this offer instead? The other trade will be cancelled.`)
+  ) {
+    return
+  }
   // The pop-up appears from the status watcher above
   await action('post', 'accept')
 }
@@ -188,11 +297,8 @@ async function confirmHandover() {
 
 async function cancelTrade() {
   if (!confirm('Cancel this trade?')) return
-  // Withdrawing your own open proposal is quiet; cancelling an accepted trade shows the link snapping
-  iDidIt = isOpen.value
-  if ((await action('post', 'cancel')) && iDidIt) {
-    showToast('Proposal withdrawn.', { tone: 'info', icon: 'x' })
-  }
+  // The status watcher above shows the "better luck next time" pop-up
+  await action('post', 'cancel')
 }
 
 // Counter offer: load both users' available items so either side can be changed
@@ -201,7 +307,8 @@ async function startCounter() {
     api.get('/listings', { params: { owner: trade.value.proposer._id } }),
     api.get('/listings', { params: { owner: trade.value.receiver._id } }),
   ])
-  proposerItems.value = proposerResponse.data
+  // The proposer's items must be free; the receiver's may be reserved (a competing offer)
+  proposerItems.value = proposerResponse.data.filter((l) => l.status === 'available')
   receiverItems.value = receiverResponse.data
   counterOffered.value = trade.value.offeredListings.map((l) => l._id)
   counterRequested.value = trade.value.requestedListings.map((l) => l._id)
@@ -231,9 +338,9 @@ onMounted(loadTrade)
 
   <template v-if="trade">
     <header class="th-trade-head">
-      <UserAvatar :name="otherName" size="lg" />
+      <UserAvatar :name="otherName" :src="otherUser.avatarUrl" size="lg" />
       <div class="th-trade-head-text">
-        <h1>Trade with {{ otherName }}</h1>
+        <h1>Trade with <RouterLink :to="`/users/${otherUser._id}`" class="th-name-link">{{ otherName }}</RouterLink></h1>
         <StatusBadge :status="trade.status" />
       </div>
     </header>
@@ -246,7 +353,11 @@ onMounted(loadTrade)
       :them="otherName"
       :give="myItems.map((l) => l.title)"
       :get="theirItems.map((l) => l.title)"
-      @close="moment = null"
+      :trade-id="trade._id"
+      :you-src="auth.user.avatarUrl || ''"
+      :them-src="otherUser.avatarUrl || ''"
+      @close="closeMoment"
+      @reviewed="onReviewed"
       @next="goToMeetup"
       @retry="retryOffer"
       @browse="keepBrowsing"
@@ -271,7 +382,7 @@ onMounted(loadTrade)
         <section class="card th-proposal" aria-label="The trade">
           <div class="th-proposal-sides">
             <div class="th-side th-side-you">
-              <span class="th-side-label"><UserAvatar :name="auth.user.name" you size="sm" />You give</span>
+              <span class="th-side-label"><UserAvatar :name="auth.user.name" :src="auth.user.avatarUrl" you size="sm" />You give</span>
               <RouterLink v-for="l in myItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link">
                 <span class="th-pick-thumb">
                   <img v-if="l.imageUrl" :src="l.imageUrl" :alt="l.title" />
@@ -285,7 +396,7 @@ onMounted(loadTrade)
             </div>
             <span class="th-swap-disc" aria-hidden="true"><AppIcon name="swap" /></span>
             <div class="th-side th-side-them">
-              <span class="th-side-label"><UserAvatar :name="otherName" size="sm" />You get</span>
+              <span class="th-side-label"><UserAvatar :name="otherName" :src="otherUser.avatarUrl" size="sm" />You get</span>
               <RouterLink v-for="l in theirItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link">
                 <span class="th-pick-thumb">
                   <img v-if="l.imageUrl" :src="l.imageUrl" :alt="l.title" />
@@ -314,6 +425,14 @@ onMounted(loadTrade)
               <p class="mb-0 fw-semibold">
                 {{ trade.status === 'countered' ? 'You received a counter offer.' : 'You received a proposal.' }}
               </p>
+              <p v-if="myReserved.length" class="th-switch-note">
+                <AppIcon name="alert" :size="16" />
+                <span>
+                  <b>This is a competing offer.</b> {{ myReserved.map((l) => l.title).join(', ') }}
+                  {{ myReserved.length === 1 ? 'is' : 'are' }} reserved for a trade you already accepted. Accepting this one cancels that trade.
+                  <RouterLink :to="`/listings/${myReserved[0]._id}#offers`">Compare all offers</RouterLink>
+                </span>
+              </p>
               <div class="th-proposal-actions">
                 <button class="btn btn-ghost" @click="rejectTrade">Reject</button>
                 <button class="btn btn-outline-dark" @click="startCounter">Counter</button>
@@ -324,10 +443,25 @@ onMounted(loadTrade)
               <p class="th-muted mb-0">
                 <AppIcon name="clock" :size="16" class="me-1" />Waiting for {{ otherName }} to respond.
               </p>
-              <div class="th-proposal-actions">
+              <div v-if="!editingOffer" class="th-proposal-actions">
+                <button v-if="isProposer" class="btn btn-outline-dark btn-sm" @click="startEditOffer">
+                  <AppIcon name="edit" :size="16" />Edit my offer
+                </button>
                 <button class="btn btn-outline-danger btn-sm" @click="cancelTrade">Withdraw proposal</button>
               </div>
             </template>
+          </div>
+
+          <!-- Edit my offer: change what I'm giving, they still answer -->
+          <div v-if="editingOffer" class="th-proposal-foot th-counter">
+            <h2 class="th-counter-title">Edit your offer</h2>
+            <p class="th-muted small mb-1">Change what you're giving for {{ theirItems.map((l) => l.title).join(', ') }}. {{ otherName }} still decides.</p>
+            <span class="th-side-label th-label-you">Your items</span>
+            <ItemPicker :listings="editItems" :selected-ids="editPicked" side="you" @toggle="toggleIn(editPicked, $event)" />
+            <div class="th-proposal-actions">
+              <button class="btn btn-ghost" @click="editingOffer = false">Back</button>
+              <button class="btn btn-primary" :disabled="editPicked.length === 0" @click="saveEditOffer">Save my offer</button>
+            </div>
           </div>
 
           <!-- Counter offer editor -->
@@ -367,6 +501,17 @@ onMounted(loadTrade)
           </div>
         </section>
 
+        <!-- Completed: rate the other trader (or see the rating you gave) -->
+        <section v-if="trade.status === 'completed' && reviewChecked" class="card th-ratecard">
+          <template v-if="myReview">
+            <span class="th-ratecard-head">You rated {{ otherName }}</span>
+            <StarRating :model-value="myReview.rating" :size="22" />
+            <p v-if="myReview.comment" class="th-ratecard-comment">“{{ myReview.comment }}”</p>
+            <RouterLink :to="`/users/${otherUser._id}?tab=reviews`" class="th-name-link small">See {{ otherName }}'s reviews</RouterLink>
+          </template>
+          <ReviewForm v-else :trade-id="trade._id" :them="otherName" @done="onReviewed" />
+        </section>
+
         <!-- Features 4 and 5: meetup and inspection checklist -->
         <template v-if="showMeetup">
           <MeetupPicker
@@ -394,6 +539,7 @@ onMounted(loadTrade)
           :trade-id="trade._id"
           :current-user-id="auth.user._id"
           :other-name="otherName"
+          :other-read-at="trade.lastRead?.[otherUser._id] || ''"
           :disabled="isClosed"
           @system-message="loadTrade"
         />

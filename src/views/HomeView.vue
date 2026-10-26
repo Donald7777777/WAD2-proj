@@ -1,14 +1,14 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
 import { CATEGORIES } from '@/lib/constants'
 import ListingCard from '@/components/ListingCard.vue'
 import AppIcon from '@/components/AppIcon.vue'
- 
+
 const auth = useAuthStore()
- 
+
 const listings = ref([])
 const matches = ref([])
 // Matches are shown 5 at a time (one row), with back / next buttons to page through them.
@@ -19,16 +19,16 @@ const matchPageCount = computed(() => Math.ceil(matches.value.length / MATCHES_P
 const visibleMatches = computed(() =>
   matches.value.slice(matchPage.value * MATCHES_PER_PAGE, (matchPage.value + 1) * MATCHES_PER_PAGE),
 )
- 
+
 // Shortcut cards that fill any empty slots on the last page, so the row is never half empty
 const FILLERS = [
-  { to: '/profile', icon: 'spark', title: 'Want more matches?', text: 'Add more wants on your profile and we will find more people.' },
+  { to: '/profile?tab=wants', icon: 'spark', title: 'Want more matches?', text: 'Add more wants on your profile and we will find more people.' },
   { to: '/listings/new', icon: 'plus', title: 'List another item', text: 'More items listed means more people who want what you have.' },
   { to: '#browse', icon: 'search', title: 'Browse everything', text: 'See every item up for trade, not just your matches.' },
   { to: '/trades', icon: 'swap', title: 'Your trades', text: 'Check on proposals you have sent and received.' },
 ]
 const fillers = computed(() => FILLERS.slice(0, MATCHES_PER_PAGE - visibleMatches.value.length))
- 
+
 function changeMatchPage(step) {
   matchPage.value = Math.min(Math.max(matchPage.value + step, 0), matchPageCount.value - 1)
 }
@@ -37,22 +37,70 @@ const search = ref('')
 const sort = ref('newest')
 const loading = ref(false)
 const error = ref('')
- 
+// Listings come in pages of 24; "Show more" (or scrolling to the bottom) loads the next one
+const PAGE_SIZE = 24
+const page = ref(1)
+const pages = ref(1)
+const total = ref(0)
+const loadingMore = ref(false)
+const hasMore = computed(() => page.value < pages.value)
+
+// The server sends one page: { items, total, page, pages }. An older server sends the whole list
+// as an array, so handle that too (then everything is on "page 1").
+function readPage(data) {
+  if (Array.isArray(data)) return { items: data, total: data.length, page: 1, pages: 1 }
+  return { items: data?.items || [], total: data?.total || 0, page: data?.page || 1, pages: data?.pages || 1 }
+}
+
+function params(p) {
+  return { category: category.value, search: search.value, sort: sort.value, page: p, limit: PAGE_SIZE }
+}
+
 async function loadListings() {
   loading.value = true
   error.value = ''
   try {
-    const response = await api.get('/listings', {
-      params: { category: category.value, search: search.value, sort: sort.value },
-    })
-    listings.value = response.data
+    const data = readPage((await api.get('/listings', { params: params(1) })).data)
+    listings.value = data.items
+    page.value = data.page
+    pages.value = data.pages
+    total.value = data.total
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
     loading.value = false
   }
 }
- 
+
+async function loadMore() {
+  if (!hasMore.value || loadingMore.value) return
+  loadingMore.value = true
+  try {
+    const data = readPage((await api.get('/listings', { params: params(page.value + 1) })).data)
+    // Skip anything already shown (a new listing can shift the pages)
+    const shown = new Set(listings.value.map((l) => l._id))
+    listings.value.push(...data.items.filter((l) => !shown.has(l._id)))
+    page.value = data.page
+    pages.value = data.pages
+    total.value = data.total
+  } catch (e) {
+    error.value = errorMessage(e)
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// Load the next page by itself when the "Show more" button scrolls into view
+const moreButton = ref(null)
+let observer = null
+watch(moreButton, (el) => {
+  observer?.disconnect()
+  if (!el || typeof IntersectionObserver === 'undefined') return
+  observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && loadMore(), { rootMargin: '300px' })
+  observer.observe(el)
+})
+onUnmounted(() => observer?.disconnect())
+
 async function loadMatches() {
   if (!auth.user) return
   try {
@@ -63,18 +111,18 @@ async function loadMatches() {
     error.value = errorMessage(e)
   }
 }
- 
+
 function pickCategory(name) {
   category.value = name
   loadListings()
 }
- 
+
 onMounted(() => {
   loadListings()
   loadMatches()
 })
 </script>
- 
+
 <template>
   <!-- Hero -->
   <section class="th-hero">
@@ -93,7 +141,7 @@ onMounted(() => {
         <a href="#browse" class="btn btn-ghost btn-lg">Browse listings</a>
       </div>
     </div>
- 
+
     <!-- Decorative: your item and their item meeting in the middle -->
     <div class="th-hero-art d-none d-md-flex" aria-hidden="true">
       <div class="th-hero-tile th-hero-you">
@@ -113,14 +161,14 @@ onMounted(() => {
       <span class="th-match-pill th-hero-match">96% match</span>
     </div>
   </section>
- 
+
   <!-- How it works (new visitors) -->
   <ol v-if="!auth.user" class="th-steps">
     <li><span class="th-step-num">1</span><b>List and set your wants</b>Add what you'd give away and what you're after.</li>
     <li><span class="th-step-num">2</span><b>Get matched, then propose</b>Offer one or more items. They accept, decline or counter.</li>
     <li><span class="th-step-num">3</span><b>Meet and inspect</b>Pick a public spot, tick the checklist, swap.</li>
   </ol>
- 
+
   <!-- Smart matches (logged-in users only) -->
   <section v-if="auth.user" class="th-section th-matches">
     <div class="th-section-head">
@@ -128,12 +176,12 @@ onMounted(() => {
         <h2>Fresh matches for you</h2>
         <p>Based on what you want and what you've listed.</p>
       </div>
-      <RouterLink to="/profile" class="th-link">Improve my matches</RouterLink>
+      <RouterLink to="/profile?tab=wants" class="th-link">Improve my matches</RouterLink>
     </div>
     <div v-if="auth.user.wants.length === 0" class="th-empty">
       <strong>Tell us what you're looking for</strong>
       <p>Add a few wants on your profile and we'll find people who have them.</p>
-      <RouterLink to="/profile" class="btn btn-primary btn-sm mt-2">Add wants</RouterLink>
+      <RouterLink to="/profile?tab=wants" class="btn btn-primary btn-sm mt-2">Add wants</RouterLink>
     </div>
     <div v-else-if="matches.length === 0" class="th-empty">
       <strong>No matches yet</strong>
@@ -178,16 +226,16 @@ onMounted(() => {
       </button>
     </nav>
   </section>
- 
+
   <!-- Browse and search -->
   <section id="browse" class="th-section">
     <div class="th-section-head">
       <div>
         <h2>Browse listings</h2>
-        <p v-if="!loading">{{ listings.length }} item{{ listings.length === 1 ? '' : 's' }} up for trade</p>
+        <p v-if="!loading">{{ total }} item{{ total === 1 ? '' : 's' }} up for trade</p>
       </div>
     </div>
- 
+
     <form class="th-toolbar" role="search" @submit.prevent="loadListings">
       <label class="th-search">
         <AppIcon name="search" />
@@ -204,7 +252,7 @@ onMounted(() => {
         <option value="oldest">Oldest first</option>
       </select>
     </form>
- 
+
     <div class="th-chips mb-4" role="group" aria-label="Category">
       <button
         v-for="name in ['All', ...CATEGORIES]"
@@ -217,9 +265,9 @@ onMounted(() => {
         {{ name }}
       </button>
     </div>
- 
+
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
- 
+
     <div v-if="loading" class="th-grid" aria-label="Loading listings">
       <div v-for="n in 4" :key="n" class="th-skeleton"></div>
     </div>
@@ -227,11 +275,20 @@ onMounted(() => {
       <strong>No listings found</strong>
       <p>Try another category or a shorter search.</p>
     </div>
- 
-    <div v-else class="th-grid">
-      <div v-for="(listing, index) in listings" :key="listing._id" v-reveal="index">
-        <ListingCard :listing="listing" />
+
+    <template v-else>
+      <div class="th-grid">
+        <div v-for="(listing, index) in listings" :key="listing._id" v-reveal="index % PAGE_SIZE">
+          <ListingCard :listing="listing" />
+        </div>
+        <div v-for="n in loadingMore ? 4 : 0" :key="`more-${n}`" class="th-skeleton" aria-hidden="true"></div>
       </div>
-    </div>
+      <div class="th-more">
+        <span class="th-muted small">Showing {{ listings.length }} of {{ total }}</span>
+        <button v-if="hasMore" ref="moreButton" type="button" class="btn btn-outline-dark" :disabled="loadingMore" @click="loadMore">
+          {{ loadingMore ? 'Loading…' : 'Show more' }}
+        </button>
+      </div>
+    </template>
   </section>
 </template>

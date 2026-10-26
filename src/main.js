@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { vReveal, vTilt } from './lib/motion'
+import { initTheme } from './lib/theme'
 
 // Import Bootstrap CSS and JS
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -14,6 +15,9 @@ import './assets/styles/tokens.css'
 import './assets/styles/bootstrap-theme.css'
 import './assets/styles/components.css'
 import './assets/styles/motion.css'
+
+// Light or dark, before anything is drawn
+initTheme()
 
 const app = createApp(App)
 

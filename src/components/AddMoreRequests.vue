@@ -33,7 +33,8 @@ const titles = (list) => list.map((l) => l.title).join(', ')
 
 async function loadItems(owner) {
   const { data } = await api.get('/listings', { params: { owner } })
-  return data.filter((l) => !inTrade.value.has(l._id))
+  // Only items that are free (not reserved for another trade) can be added
+  return data.filter((l) => !inTrade.value.has(l._id) && l.status === 'available')
 }
 
 async function startAsking() {

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import AppIcon from './AppIcon.vue'
+import MeetupMap from './MeetupMap.vue'
 import { formatMeetup, placeName } from '@/lib/format'
 
 const props = defineProps({
@@ -27,16 +28,19 @@ const today = new Date().toISOString().split('T')[0]
 // Quick searches for common public meetup points
 const suggestions = ['MRT station', 'Bus interchange', 'Shopping mall', 'Library']
 
-// OneMap (Singapore Land Authority) map image with a red pin at lat/lng
-function mapFor(lat, lng) {
-  return (
-    'https://www.onemap.gov.sg/api/staticmap/getStaticImage?layerchosen=default' +
-    `&latitude=${lat}&longitude=${lng}&zoom=17&width=512&height=300` +
-    `&points=[${lat},${lng},"220,53,69"]`
-  )
-}
+// Search results from OneMap as simple places, for the list and the numbered pins on the map
+const resultPlaces = computed(() =>
+  results.value.map((r) => ({
+    name: r.SEARCHVAL,
+    address: r.ADDRESS,
+    lat: Number(r.LATITUDE),
+    lng: Number(r.LONGITUDE),
+  })),
+)
 
-const mapUrl = computed(() => (place.value ? mapFor(place.value.lat, place.value.lng) : ''))
+// Links for the day itself
+const googleMaps = (p) => `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`
+const directions = (p) => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`
 
 async function search(text) {
   if (text) searchText.value = text
@@ -59,14 +63,15 @@ async function search(text) {
   }
 }
 
-function choose(result) {
-  place.value = {
-    name: result.SEARCHVAL,
-    address: result.ADDRESS,
-    lat: Number(result.LATITUDE),
-    lng: Number(result.LONGITUDE),
-  }
+// Picked from the list or by tapping a pin: the map flies there and drops the pin
+function choose(chosen) {
+  place.value = { ...chosen }
   results.value = []
+}
+
+// Pin dragged to fine-tune the exact spot (the place name stays the same)
+function onMove({ lat, lng }) {
+  place.value = { ...place.value, lat, lng }
 }
 
 function save() {
@@ -91,11 +96,17 @@ function save() {
 
     <!-- Saved meetup -->
     <div v-if="!editing && meetup?.name" class="th-meetup-saved">
-      <img :src="mapFor(meetup.lat, meetup.lng)" alt="Map of meetup point" class="th-map" />
+      <MeetupMap mode="view" :selected="meetup" />
       <div class="th-meetup-info">
         <h3 class="th-meetup-place">{{ placeName(meetup.name) }}</h3>
         <p class="th-muted small mb-2">{{ placeName(meetup.address) }}</p>
         <span class="th-when"><AppIcon name="clock" :size="16" />{{ formatMeetup(meetup.date, meetup.time) }}</span>
+        <div class="th-meetup-links">
+          <a :href="directions(meetup)" target="_blank" rel="noopener" class="btn btn-offer btn-sm">
+            <AppIcon name="pin" :size="16" />Get directions
+          </a>
+          <a :href="googleMaps(meetup)" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Open in Google Maps</a>
+        </div>
       </div>
       <button v-if="canEdit" class="btn btn-outline-dark btn-sm align-self-start" @click="editing = true">
         Change meetup
@@ -117,24 +128,26 @@ function save() {
 
       <div v-if="error" class="th-field-error" role="alert">{{ error }}</div>
 
+      <!-- Live map: results appear as numbered pins; tap one (or a result below) to fly there -->
+      <MeetupMap mode="pick" :places="resultPlaces" :selected="place" draggable @select="choose" @move="onMove" />
+
       <div v-if="results.length" class="list-group th-results">
         <button
-          v-for="result in results"
-          :key="result.ADDRESS"
+          v-for="(result, i) in resultPlaces"
+          :key="result.address + i"
           type="button"
           class="list-group-item list-group-item-action"
           @click="choose(result)"
         >
-          <AppIcon name="pin" :size="18" class="th-muted" />
+          <span class="th-result-num">{{ i + 1 }}</span>
           <span>
-            <span class="d-block fw-semibold small">{{ placeName(result.SEARCHVAL) }}</span>
-            <span class="d-block small th-muted">{{ placeName(result.ADDRESS) }}</span>
+            <span class="d-block fw-semibold small">{{ placeName(result.name) }}</span>
+            <span class="d-block small th-muted">{{ placeName(result.address) }}</span>
           </span>
         </button>
       </div>
 
       <div v-if="place" class="th-meetup-chosen">
-        <img :src="mapUrl" alt="Map of chosen place" class="th-map" />
         <h3 class="th-meetup-place">{{ placeName(place.name) }}</h3>
         <div class="row g-3">
           <div class="col-sm-6">
@@ -153,3 +166,11 @@ function save() {
     <p v-else class="th-muted small mb-0 px-4 pb-4">No meetup was set.</p>
   </section>
 </template>
+
+<style>
+.th-meetup-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.th-result-num {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid #12352D; color: #12352D; font: 700 12px/1 var(--font-sans);
+}
+</style>

@@ -78,7 +78,7 @@
 /* Mobile tab bar */
 .th-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   background: var(--paper-raised); border-top: 1px solid var(--line);
   padding: 4px 0 calc(6px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 24px -18px rgba(16, 48, 42, 0.35);
@@ -499,7 +499,7 @@ body:not(:has(.th-tabbar)) .th-detail-cta { bottom: var(--space-3); }
  
 /* Meetup */
 .th-meetup-saved, .th-meetup-edit { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
-.th-map { display: block; width: 100%; aspect-ratio: 512 / 300; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--paper-sunk); }
+.th-map { display: block; width: 100%; aspect-ratio: 512 / 300; max-height: 340px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--paper-sunk); }
 .th-meetup-place { margin: 0; font-size: 20px; line-height: 26px; }
 .th-meetup-info p { margin-top: 2px; }
 .th-when { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--paper-sunk); font-weight: 600; font-size: 14px; }

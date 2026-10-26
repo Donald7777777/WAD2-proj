@@ -34,5 +34,20 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = response.data
   }
 
-  return { user, loaded, fetchUser, login, register, logout, saveWants }
+  // Set or remove the profile picture; returns the old picture's storage path (to delete it)
+  async function saveAvatar(avatarUrl, avatarPath) {
+    const response = await api.put('/auth/profile', { avatarUrl, avatarPath })
+    user.value = { ...user.value, ...response.data.user }
+    return response.data.oldAvatarPath
+  }
+
+  // Block or unblock someone; keeps user.blocked (a list of ids) up to date
+  async function toggleBlock(id) {
+    const { data } = await api.post(`/users/${id}/block`)
+    const others = (user.value.blocked || []).filter((b) => String(b) !== String(id))
+    user.value = { ...user.value, blocked: data.blocked ? [...others, id] : others }
+    return data.blocked
+  }
+
+  return { user, loaded, fetchUser, login, register, logout, saveWants, saveAvatar, toggleBlock }
 })

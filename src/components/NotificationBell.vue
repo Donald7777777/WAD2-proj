@@ -3,7 +3,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useNotificationStore } from '@/stores/notifications'
 import AppIcon from './AppIcon.vue'
 
-// Bell in the top bar: unread count, and a list of what happened since you opened the site
+// Bell in the top bar: unread count, and your recent notifications (last 14 days)
 const notes = useNotificationStore()
 const open = ref(false)
 const root = ref(null)
@@ -16,7 +16,7 @@ function toggle() {
 
 function go(item) {
   open.value = false
-  notes.openTrade(item.tradeId)
+  notes.open(item)
 }
 
 // "just now", "3m", "2h"
@@ -24,7 +24,8 @@ function ago(date) {
   const seconds = Math.max(0, (Date.now() - new Date(date).getTime()) / 1000)
   if (seconds < 45) return 'just now'
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`
-  return `${Math.round(seconds / 3600)}h`
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+  return `${Math.round(seconds / 86400)}d`
 }
 
 // Wiggle when something new arrives
@@ -83,13 +84,14 @@ onUnmounted(() => {
 
         <ul v-else class="th-bell-list">
           <li v-for="item in notes.items" :key="item.id">
-            <button type="button" class="th-bell-item" :data-tone="item.tone" @click="go(item)">
+            <button type="button" class="th-bell-item" :class="{ 'is-new': item.fresh || !item.read }" :data-tone="item.tone" @click="go(item)">
               <span class="th-bell-icon"><AppIcon :name="item.icon" :size="16" /></span>
               <span class="th-bell-text">
                 <b>{{ item.title }}</b>
                 <span>{{ item.text }}</span>
               </span>
               <time class="th-bell-time">{{ ago(item.at) }}</time>
+              <span v-if="item.fresh || !item.read" class="th-bell-dot" aria-label="new"></span>
             </button>
           </li>
         </ul>
@@ -168,4 +170,10 @@ onUnmounted(() => {
 .th-toast-title { font-weight: 700; }
 .th-toast-title + * , .th-toast-text { font-weight: 500; }
 @media (prefers-reduced-motion: reduce) { .th-bell.is-ringing svg, .th-bell-item { animation: none; } }
+</style>
+<style>
+/* New since you last opened the bell */
+.th-bell-item { position: relative; }
+.th-bell-item.is-new { background: color-mix(in srgb, var(--lime-soft) 55%, transparent); }
+.th-bell-dot { position: absolute; top: 50%; left: 1px; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--brick); }
 </style>
