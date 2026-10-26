@@ -531,7 +531,7 @@ onMounted(loadTrade)
             :is-proposer="isProposer"
             :my-confirmed="myConfirmed"
             :their-confirmed="theirConfirmed"
-            :locked="trade.status !== 'accepted'"
+            :locked="trade.status !== 'accepted' || myConfirmed"
             :other-name="otherName"
             @toggle="(index, checked) => action('put', 'checklist', { index, checked })"
             @confirm="confirmHandover"
