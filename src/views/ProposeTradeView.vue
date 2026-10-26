@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 import ListingCard from '@/components/ListingCard.vue'
 import ItemPicker from '@/components/ItemPicker.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -9,6 +10,7 @@ import { flyTo, bump } from '@/lib/motion'
 import { showToast } from '@/lib/toast'
 
 const route = useRoute()
+const auth = useAuthStore()
 const router = useRouter()
 
 const listing = ref(null)
@@ -23,6 +25,14 @@ const available = computed(() => myListings.value.filter((l) => l.status === 'av
 // Other people's offers for this item: you're making a competing offer
 const offers = ref([])
 const competing = computed(() => offers.value.filter((o) => !o.mine))
+// Your items can be in several open offers; if one goes through, the others using it are withdrawn
+const myOpenOffers = ref([])
+const alsoIn = computed(() =>
+  available.value
+    .filter((l) => selectedIds.value.includes(l._id))
+    .map((l) => ({ title: l.title, count: myOpenOffers.value.filter((t) => t.offeredListings.some((o) => o._id === l._id)).length }))
+    .filter((x) => x.count),
+)
 const acceptedOffer = computed(() => offers.value.find((o) => o.status === 'accepted' && !o.mine))
 
 function toggle(id, event) {
@@ -48,6 +58,12 @@ async function propose() {
     showToast(`Proposal sent to ${listing.value.owner?.name || 'the owner'}!`, { icon: 'send' })
     router.push(`/trades/${response.data._id}`)
   } catch (e) {
+    // You already have an offer for this item (one each): open it to change it
+    if (e.response?.status === 409 && e.response.data?.tradeId) {
+      showToast(errorMessage(e), { icon: 'edit', tone: 'info' })
+      router.replace(`/trades/${e.response.data.tradeId}?edit=1`)
+      return
+    }
     error.value = errorMessage(e)
   } finally {
     sending.value = false
@@ -63,6 +79,19 @@ onMounted(async () => {
     listing.value = listingResponse.data
     myListings.value = mineResponse.data
     offers.value = (await api.get(`/listings/${route.params.id}/offers`).catch(() => ({ data: [] }))).data
+    const mineTrades = (await api.get('/trades').catch(() => ({ data: [] }))).data
+    myOpenOffers.value = mineTrades.filter(
+      (t) => ['pending', 'countered'].includes(t.status) && String(t.proposer._id || t.proposer) === auth.user?._id,
+    )
+    // One offer each: if you already made one, change it instead
+    const existing = offers.value.find((o) => o.mine && o.tradeId)
+    if (existing) {
+      showToast(
+        existing.status === 'accepted' ? 'Your offer for this item was already accepted.' : 'You already have an offer for this item. Change it here.',
+        { icon: 'edit', tone: 'info' },
+      )
+      router.replace(existing.status === 'accepted' ? `/trades/${existing.tradeId}` : `/trades/${existing.tradeId}?edit=1`)
+    }
   } catch (e) {
     error.value = errorMessage(e)
   }
@@ -120,6 +149,13 @@ onMounted(async () => {
         <p>You have no available items. <RouterLink to="/listings/new">List an item</RouterLink> first.</p>
       </div>
       <ItemPicker v-else :listings="available" :selected-ids="selectedIds" @toggle="toggle" />
+      <p v-if="alsoIn.length" class="th-alsoin">
+        <AppIcon name="info" :size="15" />
+        <span>
+          {{ alsoIn.map((x) => `${x.title} is also in ${x.count} other offer${x.count === 1 ? '' : 's'}`).join('; ') }}.
+          That's fine: if one of them goes through, the others using it are withdrawn automatically.
+        </span>
+      </p>
     </section>
   </div>
 

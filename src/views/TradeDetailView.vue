@@ -193,6 +193,13 @@ async function loadTrade() {
     const first = !trade.value
     trade.value = response.data
     findNewerTrade()
+    // "Change my offer" from the listing page: open the right editor
+    if (first && route.query.edit && isOpen.value) {
+      if (myTurn.value) await startCounter()
+      else if (isProposer.value) await startEditOffer()
+      await nextTick()
+      document.querySelector('.th-counter')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     // Opening a completed trade you haven't rated yet: show the pop-up once
     if (first && trade.value.status === 'completed') {
       await loadMyReview()

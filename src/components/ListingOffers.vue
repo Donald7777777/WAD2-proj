@@ -43,6 +43,9 @@ const STATUS = {
   pending: { label: 'Waiting', tone: 'pending', hint: 'Waiting for the owner' },
 }
 const hasAccepted = computed(() => offers.value.some((o) => o.status === 'accepted'))
+// Your own offer (one each): improve it instead of making another
+const mine = computed(() => (props.isOwner ? null : offers.value.find((o) => o.mine)))
+const others = computed(() => offers.value.filter((o) => !o.mine).length)
 
 function ago(date) {
   const s = (Date.now() - new Date(date).getTime()) / 1000
@@ -115,10 +118,16 @@ function ago(date) {
       </article>
     </TransitionGroup>
 
-    <div v-if="canOffer && !traded && offers.length" class="th-offers-cta">
-      <span><b>Think you can beat {{ offers.length === 1 ? 'it' : 'these' }}?</b> The owner picks the offer they like best.</span>
-      <RouterLink :to="`/listings/${listingId}/propose`" class="btn btn-offer"><AppIcon name="swap" :size="18" />Make a competing offer</RouterLink>
-    </div>
+    <template v-if="canOffer && !traded && offers.length">
+      <div v-if="mine && ['pending', 'countered'].includes(mine.status) && others" class="th-offers-cta">
+        <span><b>{{ others }} other offer{{ others === 1 ? '' : 's' }} in the running.</b> You can change yours to stand out.</span>
+        <RouterLink :to="`/trades/${mine.tradeId}?edit=1`" class="btn btn-offer"><AppIcon name="edit" :size="18" />Change my offer</RouterLink>
+      </div>
+      <div v-else-if="!mine" class="th-offers-cta">
+        <span><b>Think you can beat {{ offers.length === 1 ? 'it' : 'these' }}?</b> The owner picks the offer they like best.</span>
+        <RouterLink :to="`/listings/${listingId}/propose`" class="btn btn-offer"><AppIcon name="swap" :size="18" />Make a competing offer</RouterLink>
+      </div>
+    </template>
   </section>
 </template>
 

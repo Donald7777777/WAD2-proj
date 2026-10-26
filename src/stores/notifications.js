@@ -42,6 +42,7 @@ const LOOK = {
   competitor: { icon: 'alert', tone: 'danger', title: () => 'You have a competitor!' },
   competingOffer: { icon: 'swap', tone: 'success', title: (from) => `${from} made a competing offer` },
   offerClosed: { icon: 'x', tone: 'info', title: () => 'Offer closed' },
+  offerWithdrawn: { icon: 'x', tone: 'info', title: () => 'Offer withdrawn' },
   offerEdited: { icon: 'edit', tone: 'info', title: (from) => `${from} changed their offer` },
   update: { icon: 'info', tone: 'info', title: (from) => `Update from ${from}` },
 }
