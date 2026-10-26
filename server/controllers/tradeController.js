@@ -241,7 +241,12 @@ exports.acceptTrade = async (req, res) => {
 
         trade.status = 'accepted';
         trade.turn = null;
-        trade.checklist = buildChecklist(allListings);
+        // One set of checks per item, by its category (e.g. clothing checks for a clothing item)
+        const names = {
+            [idOf(trade.proposer)]: trade.proposer?.name || '',
+            [idOf(trade.receiver)]: trade.receiver?.name || ''
+        };
+        trade.checklist = buildChecklist(allListings, names);
         await trade.save();
 
         const reserved = allListings.filter(l => l.status === 'reserved').map(l => l._id);

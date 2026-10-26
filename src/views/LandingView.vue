@@ -467,7 +467,7 @@ onUnmounted(() => {
 /* Centre: the giant logo */
 .th-landing-centre { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 16px 6vh; text-align: center; }
 .th-landing-logo {
-  position: relative; width: min(52vh, 74vw); aspect-ratio: 1; padding: 0; border: 0; background: none; cursor: pointer;
+  position: relative; width: min(52vh, 74vw, 560px); aspect-ratio: 1; padding: 0; border: 0; background: none; cursor: pointer;
   border-radius: 28%; transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1); transform-style: preserve-3d;
   -webkit-tap-highlight-color: transparent;
 }
@@ -551,7 +551,7 @@ onUnmounted(() => {
 
 @media (max-width: 575.98px) {
   .th-landing-link:not(.th-landing-skip) { display: none; }
-  .th-landing-logo { width: min(46vh, 80vw); }
+  .th-landing-logo { width: min(46vh, 80vw, 480px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .th-landing-item, .th-landing-mark, .th-landing-ring { animation: none !important; }
