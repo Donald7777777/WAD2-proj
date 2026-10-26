@@ -61,6 +61,26 @@ function liveTradesWith(listingIds, exceptTradeId) {
     });
 }
 
+// Your items can be in several open offers at once. When one of them goes through, your other
+// open offers that use the same items are withdrawn (those items aren't free any more).
+async function withdrawBidsUsing(listings, exceptTradeId) {
+    const ids = listings.map(l => l._id);
+    const others = await Trade.Trade.find({
+        _id: { $ne: exceptTradeId },
+        status: { $in: ['pending', 'countered'] },
+        offeredListings: { $in: ids }
+    });
+    for (const other of others) {
+        const used = listings.filter(l => other.offeredListings.some(id => id.toString() === l._id.toString()));
+        other.status = 'cancelled';
+        other.turn = null;
+        await other.save();
+        await Message.addSystemMessage(other._id,
+            `${used.map(l => l.title).join(', ')} went to another trade, so this offer was withdrawn.`);
+    }
+    return others.length;
+}
+
 // A new offer for listings that already have offers: tell the other offerers they have a competitor.
 // The message goes in each of their trades, but only the offerer is notified (not the owner).
 async function warnCompetitors(trade, offererName, requested, ownerId) {
@@ -102,6 +122,21 @@ exports.createTrade = async (req, res) => {
         }
         if (await User.isBlockedBetween(userId, receiverId)) {
             return res.status(403).json({ error: "You can't trade with this user." });
+        }
+        // One offer per person per item: change your existing offer instead of sending another
+        const existing = await Trade.Trade.findOne({
+            proposer: userId,
+            receiver: receiverId,
+            status: { $in: ['pending', 'countered', 'accepted'] },
+            requestedListings: { $in: requestedIds }
+        }).select('_id status');
+        if (existing) {
+            return res.status(409).json({
+                error: existing.status === 'accepted'
+                    ? 'You already have an accepted trade for this item.'
+                    : 'You already have an offer for this item. Change that offer instead.',
+                tradeId: existing._id
+            });
         }
 
         // Their items may be reserved (you're making a competing offer); yours must be free
@@ -227,6 +262,8 @@ exports.acceptTrade = async (req, res) => {
 
         await Message.addSystemMessage(trade._id,
             `${req.session.userName} accepted the trade. Pick a meetup point below.`);
+        // Other open offers that were giving away any of these items are withdrawn
+        await withdrawBidsUsing(allListings, trade._id);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
