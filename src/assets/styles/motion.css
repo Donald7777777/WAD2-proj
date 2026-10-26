@@ -530,3 +530,15 @@ main:focus { outline: none; }
 /* Propose page: "this item is also in another offer" */
 .th-alsoin { display: flex; gap: 8px; margin: 10px 0 0; padding: 8px 12px; border-radius: var(--radius-md); background: var(--paper-raised); color: var(--ink-muted); font-size: 13px; line-height: 18px; }
 .th-alsoin .th-icon { flex: none; margin-top: 1px; }
+
+/* Listing page on very wide screens (or zoomed out): don't let the photo grow forever.
+   The photo + details stay at most 1440px wide and centred, with the offers lined up under them. */
+.th-detail, .th-detail ~ .th-offers { max-width: 1440px; margin-left: auto; margin-right: auto; }
+.th-detail ~ .th-offers { width: 100%; }
+@media (min-width: 768px) { .th-detail { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); } }
+/* Keep the photo no taller than the screen, so the details beside it stay in view */
+@media (min-width: 768px) { .th-gallery-main { max-height: calc(100vh - 140px); } }
+
+/* Very wide screens (or zoomed far out): the whole app stays at most 1920px wide, centred,
+   so photos and cards don't keep growing while the text stays the same size. */
+.th-page { max-width: 1920px; margin-left: auto; margin-right: auto; }

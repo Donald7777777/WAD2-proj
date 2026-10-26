@@ -95,9 +95,6 @@ async function logout() {
     <RouterLink to="/listings/new" class="th-tab th-tab-new" aria-label="List an item">
       <span class="th-tab-new-btn"><AppIcon name="plus" /></span>List
     </RouterLink>
-    <RouterLink to="/my-listings" class="th-tab" active-class="is-active">
-      <AppIcon name="box" />Listings
-    </RouterLink>
     <RouterLink to="/activity" class="th-tab" active-class="is-active">
       <span class="th-tab-icon"><AppIcon name="heart" /><span v-if="notes.newLikes" class="th-new-dot"></span></span>Likes
     </RouterLink>
