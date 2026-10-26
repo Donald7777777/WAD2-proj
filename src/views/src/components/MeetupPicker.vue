@@ -16,6 +16,14 @@ const results = ref([])
 const searching = ref(false)
 const error = ref('')
 
+const pad = (n) => String(n).padStart(2, '0')
+const now = new Date()
+const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const nowTime = () => {
+  const d = new Date()
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 // The place being chosen; starts as the saved meetup if there is one
 const place = ref(props.meetup?.name ? { ...props.meetup } : null)
 const date = ref(props.meetup?.date || '')
@@ -139,7 +147,7 @@ function save() {
         <div class="row g-3">
           <div class="col-sm-6">
             <label class="form-label" for="meetup-date">Date</label>
-            <input id="meetup-date" v-model="date" type="date" class="form-control" :min="today" />
+            <input id="meetup-date" v-model="date" type="date" class="form-control" :min="date === today ? nowTime() : undefined" />
           </div>
           <div class="col-sm-6">
             <label class="form-label" for="meetup-time">Time</label>

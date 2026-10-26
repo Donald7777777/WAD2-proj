@@ -256,6 +256,20 @@ async function action(method, path, body, retried = false) {
   }
 }
 
+// Date-only meetups count as valid until the end of that day
+function isPastMeetup(date, time) {
+  if (!date) return false
+  return new Date(`${date}T${time || '23:59'}`) < new Date()
+}
+
+async function saveMeetup(data) {
+  if (isPastMeetup(data.date, data.time)) {
+    error.value = 'Please pick a meetup date and time in the future.'
+    return
+  }
+  await action('put', 'meetup', data)
+}
+
 // ---------- Edit my offer (while waiting for their answer) ----------
 const editingOffer = ref(false)
 const editItems = ref([])
@@ -524,7 +538,7 @@ onMounted(loadTrade)
           <MeetupPicker
             :meetup="trade.meetup"
             :can-edit="trade.status === 'accepted'"
-            @save="action('put', 'meetup', $event)"
+            @save="saveMeetup"
           />
           <InspectionChecklist
             :checklist="trade.checklist"

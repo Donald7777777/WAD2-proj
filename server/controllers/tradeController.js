@@ -482,6 +482,11 @@ exports.setMeetup = async (req, res) => {
             return res.status(400).json({ error: 'Pick a location, date and time.' });
         }
 
+        const when = new Date(`${date}T${time}:00+08:00`);
+        if (Number.isNaN(when.getTime()) || when < new Date()) {
+            return res.status(400).json({ error: 'Meetup must be in the future.' });
+        }
+        
         // Changing an existing meetup says what it was, so the other trader notices the change
         const before = trade.meetup?.name ? { ...trade.meetup.toObject?.() ?? trade.meetup } : null;
         trade.meetup = { name, address, lat, lng, date, time, setBy: req.session.userId };
