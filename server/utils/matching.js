@@ -27,13 +27,17 @@ function scoreListing(user, listing, myListings) {
         }
     }
 
-    // Mutual match: the listing's owner wants something I have listed,
-    // either in their profile wants or the listing's "looking for" text (comma separated)
+    // Do they want something I have listed? (their profile wants or the listing's
+    // comma-separated "looking for" text)
     const lookingForTerms = (listing.lookingFor || '').split(',').map(t => t.trim());
     const ownerWants = [...(listing.owner.wants || []), ...lookingForTerms];
-    const mutual = myListings.some(mine =>
+    const theyWantMine = myListings.some(mine =>
         ownerWants.some(want => wantMatchesListing(want, mine))
     );
+
+    // Mutual match only when it goes both ways: I want their item AND they want one of mine.
+    // If only they want mine, it isn't a match for me (score stays 0 and it's left out).
+    const mutual = score > 0 && theyWantMine;
     if (mutual) {
         score += 30;
     }

@@ -7,7 +7,11 @@ const messageSchema = new mongoose.Schema({
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     text: { type: String, required: true },
     imageUrl: { type: String, default: '' },
-    type: { type: String, enum: ['text', 'system'], default: 'text' }
+    type: { type: String, enum: ['text', 'system'], default: 'text' },
+    // Optional, for system messages: only this user gets a notification for it (both still see it in the chat)
+    for: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // Optional: the listing it's about (for competing-offer alerts)
+    listing: { type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }
 }, { timestamps: true });
 
 const Message = mongoose.model('Message', messageSchema);
@@ -30,8 +34,9 @@ exports.addMessage = async (data) => {
     return message;
 };
 
-exports.addSystemMessage = async (tradeId, text) => {
-    const message = await Message.create({ trade: tradeId, text, type: 'system' });
+// extra: { for: userId, listing: listingId } (both optional)
+exports.addSystemMessage = async (tradeId, text, extra = {}) => {
+    const message = await Message.create({ trade: tradeId, text, type: 'system', ...extra });
     bus.emit('message', message);
     return message;
 };

@@ -2,6 +2,17 @@ const Trade = require('../models/Trade');
 const Listing = require('../models/Listing');
 const Message = require('../models/Message');
 const { buildChecklist } = require('../utils/checklists');
+const User = require('../models/User');
+const bus = require('../utils/events');
+
+// Two people changed the same trade at the same moment: the second one gets a friendly 409
+function conflict(err, res) {
+    if (err && err.name === 'VersionError') {
+        res.status(409).json({ error: 'This trade was just changed by the other person. Check the latest version and try again.' });
+        return true;
+    }
+    return false;
+}
 
 function idOf(value) {
     return (value && value._id ? value._id : value).toString();
@@ -31,12 +42,39 @@ function otherUserId(trade, userId) {
     return isProposer(trade, userId) ? idOf(trade.receiver) : idOf(trade.proposer);
 }
 
-// Check that every id is an available listing owned by ownerId
-async function loadOwnedAvailable(ids, ownerId) {
+// Check that every id is a listing owned by ownerId that can still be traded.
+// allowReserved: the owner's items may already be in an accepted trade (a competing offer)
+async function loadOwnedAvailable(ids, ownerId, allowReserved = false) {
+    const ok = allowReserved ? ['available', 'reserved'] : ['available'];
     const listings = await Listing.Listing.find({ _id: { $in: ids } });
-    const ok = listings.length === ids.length &&
-        listings.every(l => l.owner.toString() === ownerId && l.status === 'available');
-    return ok ? listings : null;
+    const valid = listings.length === ids.length &&
+        listings.every(l => l.owner.toString() === ownerId && ok.includes(l.status));
+    return valid ? listings : null;
+}
+
+// Other live trades (open or accepted) that include any of these listings
+function liveTradesWith(listingIds, exceptTradeId) {
+    return Trade.Trade.find({
+        _id: { $ne: exceptTradeId },
+        status: { $in: ['pending', 'countered', 'accepted'] },
+        $or: [{ requestedListings: { $in: listingIds } }, { offeredListings: { $in: listingIds } }]
+    });
+}
+
+// A new offer for listings that already have offers: tell the other offerers they have a competitor.
+// The message goes in each of their trades, but only the offerer is notified (not the owner).
+async function warnCompetitors(trade, offererName, requested, ownerId) {
+    const others = await liveTradesWith(requested.map(l => l._id), trade._id);
+    for (const other of others) {
+        const rival = idOf(other.proposer) === ownerId ? idOf(other.receiver) : idOf(other.proposer);
+        if (rival === idOf(trade.proposer)) continue; // your own other offer
+        const item = requested.find(l => [...other.requestedListings, ...other.offeredListings]
+            .some(id => id.toString() === l._id.toString())) || requested[0];
+        await Message.addSystemMessage(other._id,
+            `Heads up: ${offererName} also made an offer for ${item.title}.`,
+            { for: rival, listing: item._id });
+    }
+    return others.length;
 }
 
 function titlesOf(listings) {
@@ -62,8 +100,12 @@ exports.createTrade = async (req, res) => {
         if (receiverId === userId) {
             return res.status(400).json({ error: 'You cannot trade with yourself.' });
         }
+        if (await User.isBlockedBetween(userId, receiverId)) {
+            return res.status(403).json({ error: "You can't trade with this user." });
+        }
 
-        const requested = await loadOwnedAvailable(requestedIds, receiverId);
+        // Their items may be reserved (you're making a competing offer); yours must be free
+        const requested = await loadOwnedAvailable(requestedIds, receiverId, true);
         const offered = await loadOwnedAvailable(offeredIds, userId);
         if (!requested || !offered) {
             return res.status(400).json({ error: 'Some items are no longer available.' });
@@ -77,11 +119,15 @@ exports.createTrade = async (req, res) => {
             turn: receiverId
         });
 
+        const competing = await warnCompetitors(trade, req.session.userName, requested, receiverId);
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} offered ${titlesOf(offered)} for ${titlesOf(requested)}.`);
+            `${req.session.userName} offered ${titlesOf(offered)} for ${titlesOf(requested)}.` +
+            (competing ? ` This is a competing offer (${competing + 1} offers now).` : ''),
+            { listing: requested[0]._id });
 
         res.status(201).json(trade);
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to send proposal.' });
     }
@@ -89,9 +135,30 @@ exports.createTrade = async (req, res) => {
 
 exports.getMyTrades = async (req, res) => {
     try {
-        const trades = await Trade.getTradesForUser(req.session.userId);
-        res.json(trades);
+        const me = req.session.userId;
+        const trades = await Trade.getTradesForUser(me);
+        const rows = await Promise.all(trades.map(async (trade) => {
+            const t = trade.toJSON();
+            const since = trade.lastRead?.get(me);
+            t.unread = await Message.Message.countDocuments({
+                trade: trade._id,
+                type: 'text',
+                sender: { $ne: me },
+                ...(since ? { createdAt: { $gt: since } } : {})
+            });
+            const ids = [...trade.requestedListings, ...trade.offeredListings].filter(Boolean).map(l => l._id);
+            t.competing = ['pending', 'countered', 'accepted'].includes(trade.status)
+                ? await Trade.Trade.countDocuments({
+                    _id: { $ne: trade._id },
+                    status: { $in: ['pending', 'countered', 'accepted'] },
+                    $or: [{ requestedListings: { $in: ids } }, { offeredListings: { $in: ids } }]
+                })
+                : 0;
+            return t;
+        }));
+        res.json(rows);
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to load trades.' });
     }
@@ -102,6 +169,7 @@ exports.getTradeById = async (req, res) => {
         const trade = await getParticipantTrade(req, res);
         if (trade) res.json(trade);
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to load trade.' });
     }
@@ -125,8 +193,14 @@ exports.acceptTrade = async (req, res) => {
         const trade = await getParticipantTrade(req, res);
         if (!trade || !checkTurn(trade, req.session.userId, res)) return;
 
+        // The proposer's items must be free. The receiver's (the listing owner's) may be reserved
+        // for another accepted trade: accepting this one switches to it and cancels that one.
+        // (Only the receiver can be accepting here, or the receiver just countered, so it's their choice.)
         const allListings = [...trade.requestedListings, ...trade.offeredListings];
-        if (allListings.some(l => l.status !== 'available')) {
+        const receiverId = idOf(trade.receiver);
+        const blocked = allListings.some(l => l.status === 'traded'
+            || (l.status === 'reserved' && idOf(l.owner) !== receiverId));
+        if (blocked) {
             return res.status(400).json({ error: 'Some items are no longer available.' });
         }
 
@@ -134,12 +208,28 @@ exports.acceptTrade = async (req, res) => {
         trade.turn = null;
         trade.checklist = buildChecklist(allListings);
         await trade.save();
+
+        const reserved = allListings.filter(l => l.status === 'reserved').map(l => l._id);
+        if (reserved.length) {
+            const conflicts = await liveTradesWith(reserved, trade._id);
+            for (const old of conflicts.filter(t => t.status === 'accepted')) {
+                const titles = allListings.filter(l => reserved.some(id => id.toString() === l._id.toString())).map(l => l.title).join(', ');
+                await Listing.setStatus([...old.requestedListings, ...old.offeredListings], 'available');
+                old.status = 'cancelled';
+                old.turn = null;
+                await old.save();
+                await Message.addSystemMessage(old._id,
+                    `${req.session.userName} cancelled the trade to go with another offer for ${titles}.`);
+            }
+        }
+
         await Listing.setStatus(allListings.map(l => l._id), 'reserved');
 
         await Message.addSystemMessage(trade._id,
             `${req.session.userName} accepted the trade. Pick a meetup point below.`);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to accept trade.' });
     }
@@ -157,6 +247,7 @@ exports.rejectTrade = async (req, res) => {
         await Message.addSystemMessage(trade._id, `${req.session.userName} rejected the proposal.`);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to reject trade.' });
     }
@@ -176,7 +267,7 @@ exports.counterTrade = async (req, res) => {
             return res.status(400).json({ error: 'Both sides need at least one item.' });
         }
 
-        const requested = await loadOwnedAvailable(requestedIds, idOf(trade.receiver));
+        const requested = await loadOwnedAvailable(requestedIds, idOf(trade.receiver), true);
         const offered = await loadOwnedAvailable(offeredIds, idOf(trade.proposer));
         if (!requested || !offered) {
             return res.status(400).json({ error: 'Some items are no longer available.' });
@@ -192,6 +283,7 @@ exports.counterTrade = async (req, res) => {
             `${req.session.userName} countered: ${titlesOf(offered)} for ${titlesOf(requested)}.`);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to send counter offer.' });
     }
@@ -238,6 +330,7 @@ exports.requestMore = async (req, res) => {
             `${req.session.userName} asked ${otherName} to add ${what} to the trade.${note ? ` "${note}"` : ''}`);
         res.status(201).json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to send your request.' });
     }
@@ -298,6 +391,7 @@ exports.respondToRequest = async (req, res) => {
             `${req.session.userName} added ${titlesOf(listings)} to the trade. Over to you to accept.`);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to answer the request.' });
     }
@@ -325,6 +419,7 @@ exports.cancelTrade = async (req, res) => {
         await Message.addSystemMessage(trade._id, `${req.session.userName} cancelled the trade.`);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to cancel trade.' });
     }
@@ -345,13 +440,23 @@ exports.setMeetup = async (req, res) => {
             return res.status(400).json({ error: 'Pick a location, date and time.' });
         }
 
+        // Changing an existing meetup says what it was, so the other trader notices the change
+        const before = trade.meetup?.name ? { ...trade.meetup.toObject?.() ?? trade.meetup } : null;
         trade.meetup = { name, address, lat, lng, date, time, setBy: req.session.userId };
         await trade.save();
 
-        await Message.addSystemMessage(trade._id,
-            `${req.session.userName} set the meetup: ${name} on ${date} at ${time}.`);
+        const changed = before && (before.name !== name || before.date !== date || before.time !== time
+            || before.lat !== lat || before.lng !== lng);
+        if (changed) {
+            await Message.addSystemMessage(trade._id,
+                `${req.session.userName} changed the meetup to ${name} on ${date} at ${time} (was ${before.name} on ${before.date} at ${before.time}).`);
+        } else if (!before) {
+            await Message.addSystemMessage(trade._id,
+                `${req.session.userName} set the meetup: ${name} on ${date} at ${time}.`);
+        }
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to save meetup.' });
     }
@@ -384,6 +489,7 @@ exports.updateChecklist = async (req, res) => {
         await trade.save();
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to update checklist.' });
     }
@@ -413,21 +519,108 @@ exports.confirmHandover = async (req, res) => {
             trade.receiverConfirmed = true;
         }
 
-        if (trade.proposerConfirmed && trade.receiverConfirmed) {
-            trade.status = 'completed';
+        const completing = trade.proposerConfirmed && trade.receiverConfirmed;
+        if (completing) trade.status = 'completed';
+        await trade.save();
+
+        if (completing) {
             const ids = [...trade.requestedListings, ...trade.offeredListings].map(l => l._id);
             await Listing.setStatus(ids, 'traded');
             await Message.addSystemMessage(trade._id, 'Both users confirmed the handover. Trade complete!');
+            // Other offers for these items can't happen any more
+            const allListings = [...trade.requestedListings, ...trade.offeredListings];
+            const stale = await liveTradesWith(ids, trade._id);
+            for (const other of stale) {
+                const gone = allListings.filter(l => [...other.requestedListings, ...other.offeredListings]
+                    .some(id => id.toString() === l._id.toString()));
+                other.status = other.status === 'accepted' ? 'cancelled' : 'rejected';
+                other.turn = null;
+                await other.save();
+                const freed = [...other.requestedListings, ...other.offeredListings]
+                    .filter(id => !ids.some(t => t.toString() === id.toString()));
+                if (freed.length) await Listing.setStatus(freed, 'available');
+                await Message.addSystemMessage(other._id,
+                    `${gone.map(l => l.title).join(', ')} was traded to someone else, so this offer is closed.`);
+            }
         } else {
             await Message.addSystemMessage(trade._id,
                 `${req.session.userName} confirmed the handover. Waiting for the other user.`);
         }
 
-        await trade.save();
         res.json(await Trade.findById(trade._id));
     } catch (err) {
+        if (conflict(err, res)) return;
         console.error(err);
         res.status(500).json({ error: 'Failed to confirm handover.' });
+    }
+};
+
+// PUT /api/trades/:id/offer  { offeredListingIds }
+// The proposer changes what they're offering while waiting for an answer
+exports.editOffer = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const trade = await getParticipantTrade(req, res);
+        if (!trade) return;
+        if (!isProposer(trade, userId)) {
+            return res.status(403).json({ error: 'Only the person who made the offer can change it.' });
+        }
+        if (!['pending', 'countered'].includes(trade.status)) {
+            return res.status(400).json({ error: 'This offer can no longer be changed.' });
+        }
+        if (idOf(trade.turn) === userId) {
+            return res.status(400).json({ error: 'It is your turn: use Counter to change the offer.' });
+        }
+        const offeredIds = req.body.offeredListingIds || [];
+        if (offeredIds.length === 0) {
+            return res.status(400).json({ error: 'Offer at least one item.' });
+        }
+        const offered = await loadOwnedAvailable(offeredIds, userId);
+        if (!offered) {
+            return res.status(400).json({ error: 'Some of your items are no longer available.' });
+        }
+        const before = trade.offeredListings.map(l => idOf(l)).sort().join(',');
+        if (before === offeredIds.map(String).sort().join(',')) {
+            return res.status(400).json({ error: "That's the same as your current offer." });
+        }
+        trade.offeredListings = offeredIds;
+        await trade.save();
+        await Message.addSystemMessage(trade._id,
+            `${req.session.userName} changed their offer: ${titlesOf(offered)} for ${titlesOf(trade.requestedListings)}.`);
+        res.json(await Trade.findById(trade._id));
+    } catch (err) {
+        if (conflict(err, res)) return;
+        console.error(err);
+        res.status(500).json({ error: 'Failed to change your offer.' });
+    }
+};
+
+// POST /api/trades/:id/read: I've read the chat up to now (for unread counts and "Seen")
+exports.markRead = async (req, res) => {
+    try {
+        const trade = await getParticipantTrade(req, res);
+        if (!trade) return;
+        const at = new Date();
+        // A plain update, so it never clashes with other changes to the trade
+        await Trade.Trade.updateOne({ _id: trade._id }, { $set: { [`lastRead.${req.session.userId}`]: at } });
+        bus.emit('read', { trade: trade._id.toString(), user: req.session.userId, at });
+        res.json({ at });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to update the chat.' });
+    }
+};
+
+// POST /api/trades/:id/typing: tell the other person I'm typing (nothing is saved)
+exports.typing = async (req, res) => {
+    try {
+        const trade = await getParticipantTrade(req, res);
+        if (!trade) return;
+        bus.emit('typing', { trade: trade._id.toString(), user: req.session.userId, name: req.session.userName });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed.' });
     }
 };
 
