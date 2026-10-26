@@ -514,6 +514,14 @@ exports.updateChecklist = async (req, res) => {
             return res.status(400).json({ error: 'The checklist is only available for accepted trades.' });
         }
 
+        //Prevent users from changing their checklist after confirmation
+        const proposer = isProposer(trade, req.session.userId);
+        if (proposer? trade.proposerConfirmed : trade.receiverConfirmed) {
+            return res.status(400).json({
+                error: 'You have already confirmed the handover.'
+            });
+        }
+
         const index = Number(req.body.index);
         const item = trade.checklist[index];
         if (!item) {
@@ -521,7 +529,7 @@ exports.updateChecklist = async (req, res) => {
         }
 
         const checked = Boolean(req.body.checked);
-        if (isProposer(trade, req.session.userId)) {
+        if (proposer) {
             item.proposerChecked = checked;
             if (!checked) trade.proposerConfirmed = false;
         } else {
