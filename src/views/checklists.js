@@ -42,6 +42,36 @@ const checklistsByCategory = {
         'All pieces are included',
         'No broken or sharp parts',
         'Batteries / electronics work (if any)'
+    ],
+    Sports: [
+        'Check for cracks, tears or other damage',
+        'Make sure all parts are included',
+        'Check that the item works properly'
+    ],
+    Perfume: [
+        'Check the bottle for cracks or leaks',
+        'Check the remaining perfume amount',
+        'Check that the cap and spray nozzle work'
+    ],
+    Cosmetics: [
+        'Check the expiry date',
+        'Check that the packaging is intact',
+        'Check that the product matches the listing'
+    ],
+    Stationery: [
+        'Check that all items are included',
+        'Check pens and markers for ink',
+        'Check notebooks for missing or damaged pages'
+    ],
+    Accessories: [
+        'Check for scratches or visible damage',
+        'Check clasps, zips or fasteners',
+        'Check that all parts are included'
+    ],
+    Other: [
+        'Check for visible damage',
+        'Make sure all parts are included',
+        'Check that the item matches its description'
     ]
 };
 

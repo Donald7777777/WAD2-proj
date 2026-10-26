@@ -32,7 +32,7 @@ function allImages(listing) {
     return listing.imageUrl ? [{ path: listing.imagePath, url: listing.imageUrl }] : [];
 }
 
-const CATEGORIES = ['Cameras', 'Tech', 'Music', 'Books', 'Clothing', 'Outdoors', 'Home', 'Toys', 'Other'];
+const CATEGORIES = ['Cameras', 'Tech', 'Music', 'Books', 'Clothing', 'Outdoors', 'Home', 'Toys', 'Sports', 'Perfume', 'Cosmetics', 'Stationery', 'Accessories', 'Other'];
 const CONDITIONS = ['Like new', 'Excellent', 'Good', 'Fair'];
 
 // MongoDB ids are 24 hex characters; anything else can't match a listing
