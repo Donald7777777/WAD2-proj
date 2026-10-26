@@ -90,6 +90,7 @@ function eventKind(text) {
     if (text.includes(' added ') && text.includes(' to the trade')) return 'itemsAdded';
     if (text.startsWith('Heads up: ') && text.includes(' also made an offer for ')) return 'competitor';
     if (text.includes(' was traded to someone else')) return 'offerClosed';
+    if (text.includes(' went to another trade, so this offer was withdrawn')) return 'offerWithdrawn';
     if (text.includes(' offered ') && text.includes('This is a competing offer')) return 'competingOffer';
     if (text.includes(' offered ')) return 'proposed';
     if (text.includes(' changed their offer: ')) return 'offerEdited';

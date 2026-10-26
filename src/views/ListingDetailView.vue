@@ -33,6 +33,8 @@ const reporting = ref(false)
 // Offers on this item (from ListingOffers): your own live offer, and how many there are
 const offers = ref([])
 const myOffer = computed(() => offers.value.find((o) => o.mine))
+// You can change your offer while it's still open (not once it's accepted)
+const canChangeOffer = computed(() => ['pending', 'countered'].includes(myOffer.value?.status))
 function jumpToOffers() {
   document.getElementById('offers')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
@@ -108,10 +110,14 @@ onMounted(async () => {
           <RouterLink v-if="myOffer" :to="`/trades/${myOffer.tradeId}`" class="btn btn-primary btn-lg">
             <AppIcon name="swap" />View your offer
           </RouterLink>
-          <RouterLink v-if="auth.user" :to="`/listings/${listing._id}/propose`" class="btn btn-lg" :class="myOffer ? 'btn-outline-dark' : 'btn-offer'">
-            <AppIcon name="swap" />{{ myOffer ? 'Make another offer' : offers.length ? 'Make a competing offer' : 'Offer a trade' }}
+          <!-- One offer each: change yours instead of sending another -->
+          <RouterLink v-if="myOffer && canChangeOffer" :to="`/trades/${myOffer.tradeId}?edit=1`" class="btn btn-outline-dark btn-lg">
+            <AppIcon name="edit" />Change my offer
           </RouterLink>
-          <RouterLink v-else :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-offer btn-lg">
+          <RouterLink v-else-if="auth.user && !myOffer" :to="`/listings/${listing._id}/propose`" class="btn btn-offer btn-lg">
+            <AppIcon name="swap" />{{ offers.length ? 'Make a competing offer' : 'Offer a trade' }}
+          </RouterLink>
+          <RouterLink v-else-if="!auth.user" :to="{ name: 'login', query: { redirect: route.fullPath } }" class="btn btn-offer btn-lg">
             Log in to offer a trade
           </RouterLink>
           <a v-if="offers.length" href="#offers" class="th-link small th-offers-jump" @click.prevent="jumpToOffers">

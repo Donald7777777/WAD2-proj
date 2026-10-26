@@ -526,3 +526,7 @@ main:focus { outline: none; }
 [data-theme="dark"] .th-omoment[data-kind="newOffer"] .th-omoment-eyebrow { color: var(--lime); }
 [data-theme="dark"] .th-compete-banner > .th-icon { color: #E4B54A; }
 [data-theme="dark"] .th-reserved-tag { color: #0D1916; }
+
+/* Propose page: "this item is also in another offer" */
+.th-alsoin { display: flex; gap: 8px; margin: 10px 0 0; padding: 8px 12px; border-radius: var(--radius-md); background: var(--paper-raised); color: var(--ink-muted); font-size: 13px; line-height: 18px; }
+.th-alsoin .th-icon { flex: none; margin-top: 1px; }
