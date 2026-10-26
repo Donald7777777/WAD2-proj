@@ -415,3 +415,114 @@
 .th-tlink[data-play="decline"] .th-tlink-them .th-tlink-dot { animation: th-head-shake 0.7s ease-in-out 0.65s both; }
 @keyframes th-head-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px) rotate(-6deg); } 40% { transform: translateX(6px) rotate(6deg); } 60% { transform: translateX(-4px) rotate(-3deg); } 80% { transform: translateX(3px); } }
 .th-tlink[data-state="declined"] .th-tlink-you { transition: transform 0.8s var(--ease-out) 0.9s, filter 0.8s ease 0.9s; transform: translateY(3px); filter: saturate(0.4); }
+
+/* Names that link to profiles */
+.th-owner-link { text-decoration: none; color: var(--ink); border-radius: var(--radius-md); transition: background 0.2s ease; }
+.th-owner-link:hover { color: var(--ink); background: var(--paper-sunk); }
+.th-listing-ownerlink { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; color: inherit; text-decoration: none; }
+.th-listing-ownerlink span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-listing-ownerlink:hover { color: var(--ink); text-decoration: underline; }
+.th-name-link { color: inherit; text-decoration: none; background: linear-gradient(var(--mint), var(--mint)) 0 100% / 100% 3px no-repeat; }
+.th-name-link:hover { color: inherit; background-size: 100% 40%; }
+.th-tlink-dot { overflow: hidden; }
+.th-tlink-dot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Rate-the-trader card on a completed trade */
+.th-ratecard { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--space-4); margin-bottom: var(--space-4); text-align: center; background: var(--grad-soft); animation: th-event-in 0.5s var(--ease-spring) both; }
+.th-ratecard-head { font-weight: 700; }
+.th-ratecard-comment { margin: 0; font-style: italic; color: var(--ink-muted); }
+
+/* Tabs and stats shared by the profile pages */
+.th-person-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-muted); font-size: 14px; }
+.th-person-stats span { display: inline-flex; align-items: center; gap: 6px; }
+.th-tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.th-tab-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; background: none; color: var(--ink-muted);
+  font-weight: 700; font-size: 15px; border-bottom: 3px solid transparent; margin-bottom: -1px;
+}
+.th-tab-btn[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--emerald); }
+
+/* Little dot on "Likes" when someone has liked or saved your listing since you last looked */
+.th-tab-icon { position: relative; display: inline-flex; }
+.th-new-dot {
+  display: inline-block; width: 8px; height: 8px; margin-left: 4px; vertical-align: top; border-radius: 50%;
+  background: #E0457B; box-shadow: 0 0 0 2px var(--paper-raised); animation: th-dot-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.th-tab-icon .th-new-dot { position: absolute; top: -1px; right: -5px; margin: 0; }
+@keyframes th-dot-pop { from { transform: scale(0); } }
+
+/* Listing page: reserved note above the competing-offer button */
+.th-reserved-note {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%; margin: 0 0 4px; padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--lagoon-soft); color: var(--ink); font-size: 14px; line-height: 20px;
+}
+.th-reserved-note .th-icon { flex: none; margin-top: 2px; color: var(--lagoon); }
+.th-offers-jump { align-self: center; }
+.th-detail-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* "Reserved" tag on a card photo (bottom-left; the photo count sits bottom-right) */
+.th-reserved-tag {
+  position: absolute; left: 8px; bottom: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: 999px; background: var(--lagoon); color: #fff; font: 700 11px/1 var(--font-sans);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.4);
+}
+/* Phones: the Mutual badge moves to the bottom-left, so Reserved goes top-right */
+@media (max-width: 575.98px) {
+  .th-grid .th-reserved-tag { top: 8px; bottom: auto; left: auto; right: 8px; padding: 3px 7px; font-size: 10px; }
+}
+
+/* Propose page: "you're making a competing offer" */
+.th-compete-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; padding: 12px 16px;
+  border-radius: var(--radius-md); background: linear-gradient(135deg, #FFF6DA, var(--lime-soft)); box-shadow: inset 0 0 0 1.5px #EBCB6B;
+}
+.th-compete-banner > .th-icon { flex: none; color: #9A6B00; }
+.th-compete-banner > div { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 220px; font-size: 14px; line-height: 20px; }
+[data-theme="dark"] .th-compete-banner { background: linear-gradient(135deg, #3A3215, #2A3A18); }
+
+/* Trade page: accepting a competing offer cancels the trade you already accepted */
+.th-switch-note {
+  display: flex; gap: 8px; width: 100%; margin: 0; padding: 10px 12px; border-radius: var(--radius-md);
+  background: #FFF4D6; color: #4A3400; font-size: 14px; line-height: 20px;
+}
+.th-switch-note .th-icon { flex: none; margin-top: 2px; }
+.th-switch-note a { color: inherit; font-weight: 700; }
+[data-theme="dark"] .th-switch-note { background: #3A3215; color: #F6E7B8; }
+/* Phones: the listing's buttons stick to the bottom, so keep the reserved note small */
+@media (max-width: 767.98px) {
+  .th-detail-cta .th-reserved-note { padding: 6px 10px; font-size: 12px; line-height: 16px; }
+  .th-detail-cta .btn-lg { flex: 1 1 auto; justify-content: center; }
+  .th-detail-cta .th-offers-jump { font-size: 12px; }
+}
+
+/* Discover: "Showing 24 of 50" and Show more */
+.th-more { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 24px; }
+
+/* Report / block */
+.th-quiet-danger { color: var(--ink-muted); }
+.th-quiet-danger:hover { color: var(--brick); }
+.th-blocked-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 14px;
+  border-radius: var(--radius-md); background: #FBE3E0; color: #5A1C15; font-size: 14px;
+}
+.th-blocked-banner .btn { margin-left: auto; }
+[data-theme="dark"] .th-blocked-banner { background: #3A201D; color: #F5C9C2; }
+.th-report-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; border: 0; background: none; padding: 0; color: var(--ink-muted); font-size: 13px; }
+.th-report-link:hover { color: var(--brick); text-decoration: underline; }
+
+/* "Skip to content" link: hidden until it gets keyboard focus */
+.th-skip {
+  position: fixed; top: 8px; left: 8px; z-index: 3000; padding: 10px 16px; border-radius: 999px;
+  background: var(--ink); color: var(--on-ink); font-weight: 700; text-decoration: none; transform: translateY(-160%);
+  transition: transform 0.2s ease;
+}
+.th-skip:focus { transform: none; color: var(--on-ink); }
+main:focus { outline: none; }
+
+/* Dark mode: warmer labels that are readable on dark backgrounds */
+[data-theme="dark"] .th-offer.is-countered .th-offer-status { background: #3A3215; color: #F6E7B8; }
+[data-theme="dark"] .th-rmoment-eyebrow { color: #E4B54A; }
+[data-theme="dark"] .th-omoment-eyebrow { color: #F0A43A; }
+[data-theme="dark"] .th-omoment[data-kind="newOffer"] .th-omoment-eyebrow { color: var(--lime); }
+[data-theme="dark"] .th-compete-banner > .th-icon { color: #E4B54A; }
+[data-theme="dark"] .th-reserved-tag { color: #0D1916; }

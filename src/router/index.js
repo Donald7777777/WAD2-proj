@@ -11,6 +11,14 @@ const router = createRouter({
     { path: '/discover', name: 'home', component: HomeView },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
+    { path: '/forgot-password', name: 'forgot', component: () => import('../views/ForgotPasswordView.vue') },
+    { path: '/reset-password', name: 'reset', component: () => import('../views/ResetPasswordView.vue') },
+    {
+      path: '/account',
+      name: 'account',
+      component: () => import('../views/AccountView.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // Feature 1: listings & matching
     {
@@ -31,6 +39,30 @@ const router = createRouter({
       name: 'my-listings',
       component: () => import('../views/MyListingsView.vue'),
       meta: { requiresAuth: true },
+    },
+    // People: search and public profiles (rating, reviews, listings)
+    { path: '/people', name: 'people', component: () => import('../views/PeopleView.vue') },
+    // Profiles: one page for everyone. Your own (/profile) also shows your private tabs.
+    {
+      path: '/users/:id',
+      name: 'user',
+      component: () => import('../views/ProfileView.vue'),
+      // Your own id goes to /profile, so there's only ever one "you" page
+      beforeEnter: (to) => {
+        const auth = useAuthStore()
+        if (auth.user && to.params.id === auth.user._id) return { path: '/profile', query: to.query }
+      },
+    },
+    {
+      path: '/activity',
+      name: 'activity',
+      component: () => import('../views/ActivityView.vue'),
+      meta: { requiresAuth: true },
+    },
+    // Liked and saved items now live in tabs on the Profile page
+    {
+      path: '/saved',
+      redirect: (to) => ({ path: '/profile', query: { tab: to.query.tab === 'liked' ? 'liked' : 'saved' } }),
     },
     {
       path: '/profile',

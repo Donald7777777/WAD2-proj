@@ -14,6 +14,9 @@ const listingSchema = new mongoose.Schema({
     images: { type: [{ path: { type: String, default: '' }, url: { type: String, required: true }, _id: false }], default: [] },
     imagePath: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
+    // Who has liked (heart) and saved (bookmark) this listing; the counts are their lengths
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    saves: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     // available -> reserved (trade accepted) -> traded (handover confirmed)
     status: { type: String, enum: ['available', 'reserved', 'traded'], default: 'available' }
 }, { timestamps: true });
@@ -25,10 +28,20 @@ exports.Listing = Listing;
 // Get listings with optional category filter, title search and sort
 exports.retrieveAll = (filter, sort) => {
     const sortOption = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
-    return Listing.find(filter).populate('owner', 'name').sort(sortOption);
+    return Listing.find(filter).populate('owner', 'name avatarUrl').sort(sortOption);
 };
 
-exports.findById = (id) => Listing.findById(id).populate('owner', 'name wants');
+// One page of listings, plus the total (for Discover's "Load more")
+exports.retrievePage = async (filter, sort, page, limit) => {
+    const sortOption = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
+    const [items, total] = await Promise.all([
+        Listing.find(filter).populate('owner', 'name avatarUrl').sort(sortOption).skip((page - 1) * limit).limit(limit),
+        Listing.countDocuments(filter)
+    ]);
+    return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)) };
+};
+
+exports.findById = (id) => Listing.findById(id).populate('owner', 'name wants avatarUrl');
 
 exports.addListing = (data) => Listing.create(data);
 

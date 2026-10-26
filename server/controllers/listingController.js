@@ -2,6 +2,7 @@ const Listing = require('../models/Listing');
 const User = require('../models/User');
 const { Trade } = require('../models/Trade');
 const { rankMatches } = require('../utils/matching');
+const Reaction = require('../models/Reaction');
 
 const MAX_IMAGES = 6;
 
@@ -70,7 +71,9 @@ exports.getAllListings = async (req, res) => {
         const search = text(first(req.query.search));
         const sort = first(req.query.sort);
         const owner = first(req.query.owner);
-        const filter = { status: 'available' };
+        // Reserved items (in an accepted trade) still show, so others can make a competing offer.
+        // Only traded items are hidden.
+        const filter = { status: { $in: ['available', 'reserved'] } };
 
         if (category && category !== 'All') {
             filter.category = category;
@@ -82,14 +85,24 @@ exports.getAllListings = async (req, res) => {
             filter.title = { $regex: escapedSearch, $options: 'i' };
         }
 
+        // People you've blocked (or who blocked you) are hidden
+        const hidden = await User.blockedIds(req.session.userId);
         if (owner) {
             if (!isValidId(owner)) {
                 return res.status(400).json({ error: 'Invalid owner id.' });
             }
+            if (hidden.includes(owner)) return res.json(req.query.page ? { items: [], total: 0, page: 1, pages: 1 } : []);
             filter.owner = owner;
         } else if (req.session.userId) {
             // Don't show users their own items on the discover page
-            filter.owner = { $ne: req.session.userId };
+            filter.owner = { $nin: [req.session.userId, ...hidden] };
+        }
+
+        // ?page=2&limit=24 -> { items, total, page, pages }; without page, the whole list (as before)
+        if (req.query.page) {
+            const page = Math.max(1, parseInt(first(req.query.page), 10) || 1);
+            const limit = Math.min(48, Math.max(1, parseInt(first(req.query.limit), 10) || 24));
+            return res.json(await Listing.retrievePage(filter, sort, page, limit));
         }
 
         const listings = await Listing.retrieveAll(filter, sort);
@@ -111,6 +124,58 @@ exports.getMyListings = async (req, res) => {
     }
 };
 
+// GET /api/listings/:id/offers
+// Every live offer for this listing (open or accepted), so anyone can see the competition.
+// "Offerer" is the person trading with the listing's owner; "items" is what they put up.
+exports.getListingOffers = async (req, res) => {
+    try {
+        if (!isValidId(req.params.id)) {
+            return res.status(404).json({ error: 'Listing not found.' });
+        }
+        const listing = await Listing.Listing.findById(req.params.id).select('owner');
+        if (!listing) {
+            return res.status(404).json({ error: 'Listing not found.' });
+        }
+        const owner = listing.owner.toString();
+        const me = req.session?.userId;
+        const trades = await Trade.find({
+            status: { $in: ['pending', 'countered', 'accepted'] },
+            $or: [{ requestedListings: listing._id }, { offeredListings: listing._id }]
+        })
+            .populate('proposer', 'name avatarUrl')
+            .populate('receiver', 'name avatarUrl')
+            .populate('requestedListings', 'title imageUrl images condition owner status')
+            .populate('offeredListings', 'title imageUrl images condition owner status')
+            .sort({ createdAt: 1 });
+
+        const offers = trades
+            .filter((t) => t.proposer && t.receiver)
+            .map((t) => {
+                const offerer = t.proposer._id.toString() === owner ? t.receiver : t.proposer;
+                const items = [...t.requestedListings, ...t.offeredListings]
+                    .filter((l) => l && l.owner.toString() === offerer._id.toString());
+                const mine = Boolean(me) && [t.proposer._id.toString(), t.receiver._id.toString()].includes(me);
+                return {
+                    _id: t._id,
+                    status: t.status,
+                    createdAt: t.createdAt,
+                    updatedAt: t.updatedAt,
+                    offerer: { _id: offerer._id, name: offerer.name, avatarUrl: offerer.avatarUrl || '' },
+                    items: items.map((l) => ({ _id: l._id, title: l.title, imageUrl: l.imageUrl, condition: l.condition })),
+                    // Only the two traders can open the trade itself
+                    tradeId: mine ? t._id : null,
+                    mine
+                };
+            })
+            // The accepted one first, then the rest oldest first
+            .sort((a, b) => (b.status === 'accepted') - (a.status === 'accepted'));
+        res.json(offers);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load offers.' });
+    }
+};
+
 exports.getListingById = async (req, res) => {
     try {
         if (!isValidId(req.params.id)) {
@@ -120,7 +185,10 @@ exports.getListingById = async (req, res) => {
         if (!listing) {
             return res.status(404).json({ error: 'Listing not found.' });
         }
-        res.json(listing);
+        // Blocked either way: the page still opens, but you can't make an offer
+        const hidden = listing.owner ? await User.blockedIds(req.session?.userId) : [];
+        const data = typeof listing.toJSON === 'function' ? listing.toJSON() : listing;
+        res.json({ ...data, blocked: hidden.includes(listing.owner?._id?.toString()) });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to load listing.' });
@@ -227,13 +295,107 @@ exports.getMatches = async (req, res) => {
     try {
         const user = await User.getUserById(req.session.userId);
         const others = await Listing.Listing
-            .find({ status: 'available', owner: { $ne: req.session.userId } })
-            .populate('owner', 'name wants');
+            .find({
+                status: { $in: ['available', 'reserved'] },
+                owner: { $nin: [req.session.userId, ...(await User.blockedIds(req.session.userId))] }
+            })
+            .populate('owner', 'name wants avatarUrl');
         const mine = await Listing.Listing.find({ owner: req.session.userId, status: 'available' });
 
         res.json(rankMatches(user, others, mine));
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to load matches.' });
+    }
+};
+
+// ---------- Likes and saves ----------
+// POST /api/listings/:id/like  and  POST /api/listings/:id/save
+// Each call switches it on or off for the logged-in user and returns the new totals.
+function toggle(field) {
+    return async (req, res) => {
+        try {
+            const me = req.session.userId;
+            if (!isValidId(req.params.id)) {
+                return res.status(404).json({ error: 'Listing not found.' });
+            }
+            const listing = await Listing.Listing.findById(req.params.id).select('owner likes saves');
+            if (!listing) {
+                return res.status(404).json({ error: 'Listing not found.' });
+            }
+            if (listing.owner.toString() === me) {
+                return res.status(400).json({ error: `You can't ${field === 'likes' ? 'like' : 'save'} your own listing.` });
+            }
+            const already = (listing[field] || []).some((id) => id.toString() === me);
+            const updated = await Listing.Listing.findByIdAndUpdate(
+                req.params.id,
+                already ? { $pull: { [field]: me } } : { $addToSet: { [field]: me } },
+                { returnDocument: 'after' }
+            ).select('likes saves');
+            // Keep a timestamped record for the owner's activity page and notification
+            const record = { user: me, listing: listing._id, owner: listing.owner, kind: field === 'likes' ? 'like' : 'save' };
+            if (already) await Reaction.remove(record);
+            else await Reaction.add(record);
+
+            const has = (list) => (list || []).some((id) => id.toString() === me);
+            res.json({
+                likeCount: (updated.likes || []).length,
+                saveCount: (updated.saves || []).length,
+                liked: has(updated.likes),
+                saved: has(updated.saves)
+            });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'Something went wrong. Please try again.' });
+        }
+    };
+}
+
+exports.toggleLike = toggle('likes');
+exports.toggleSave = toggle('saves');
+
+// GET /api/listings/saved: everything the logged-in user has saved, newest first
+exports.getSavedListings = async (req, res) => {
+    try {
+        const listings = await Listing.Listing.find({ saves: req.session.userId })
+            .populate('owner', 'name avatarUrl')
+            .sort({ updatedAt: -1 });
+        res.json(listings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load your saved items.' });
+    }
+};
+
+// GET /api/listings/liked: everything the logged-in user has liked, newest first
+exports.getLikedListings = async (req, res) => {
+    try {
+        const listings = await Listing.Listing.find({ likes: req.session.userId })
+            .populate('owner', 'name avatarUrl')
+            .sort({ updatedAt: -1 });
+        res.json(listings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load your liked items.' });
+    }
+};
+
+// GET /api/activity?kind=like|save&listing=<id>
+// Who liked or saved my listings, newest first (like Instagram's activity)
+exports.getActivity = async (req, res) => {
+    try {
+        const filter = { owner: req.session.userId };
+        if (['like', 'save'].includes(req.query.kind)) filter.kind = req.query.kind;
+        if (isValidId(req.query.listing)) filter.listing = req.query.listing;
+        const rows = await Reaction.Reaction.find(filter)
+            .populate('user', 'name avatarUrl')
+            .populate('listing', 'title imageUrl status')
+            .sort({ createdAt: -1 })
+            .limit(100);
+        // Skip likes on listings or by users that no longer exist
+        res.json(rows.filter((r) => r.user && r.listing));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load your activity.' });
     }
 };

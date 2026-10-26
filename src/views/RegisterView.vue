@@ -25,7 +25,7 @@ async function register() {
   try {
     await auth.register(name.value, email.value, password.value)
     // New users set their wants first so matching works
-    router.push('/profile')
+    router.push('/profile?tab=wants')
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

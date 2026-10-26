@@ -20,6 +20,10 @@ const sending = ref(false)
 const counter = ref(null)
 
 const available = computed(() => myListings.value.filter((l) => l.status === 'available'))
+// Other people's offers for this item: you're making a competing offer
+const offers = ref([])
+const competing = computed(() => offers.value.filter((o) => !o.mine))
+const acceptedOffer = computed(() => offers.value.find((o) => o.status === 'accepted' && !o.mine))
 
 function toggle(id, event) {
   if (selectedIds.value.includes(id)) {
@@ -58,6 +62,7 @@ onMounted(async () => {
     ])
     listing.value = listingResponse.data
     myListings.value = mineResponse.data
+    offers.value = (await api.get(`/listings/${route.params.id}/offers`).catch(() => ({ data: [] }))).data
   } catch (e) {
     error.value = errorMessage(e)
   }
@@ -68,9 +73,22 @@ onMounted(async () => {
   <RouterLink v-if="listing" :to="`/listings/${listing._id}`" class="th-back"><AppIcon name="back" :size="18" />Back to listing</RouterLink>
   <div class="th-page-head">
     <div>
-      <h1>Offer a trade</h1>
+      <h1>{{ competing.length ? 'Make a competing offer' : 'Offer a trade' }}</h1>
       <p v-if="listing">Pick what you'll give for {{ listing.title }}. You can offer more than one item.</p>
     </div>
+  </div>
+  <!-- Someone else is already in the running -->
+  <div v-if="competing.length" class="th-compete-banner">
+    <AppIcon name="spark" :size="20" />
+    <div>
+      <b v-if="acceptedOffer">{{ acceptedOffer.offerer.name }}'s offer was accepted, but it's not over yet.</b>
+      <b v-else>{{ competing.length }} other offer{{ competing.length === 1 ? '' : 's' }} for this item.</b>
+      <span>
+        They offered {{ (acceptedOffer || competing[0]).items.map((i) => i.title).join(', ') }}.
+        If {{ listing?.owner?.name || 'the owner' }} likes yours better, they can switch to it.
+      </span>
+    </div>
+    <RouterLink :to="`/listings/${route.params.id}#offers`" class="btn btn-sm btn-outline-dark">See all offers</RouterLink>
   </div>
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 

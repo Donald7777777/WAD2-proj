@@ -44,8 +44,11 @@ async function login() {
               <input id="email" v-model.trim="email" type="email" class="form-control" required />
             </div>
             <div class="mb-3">
-              <label class="form-label" for="password">Password</label>
-              <input id="password" v-model="password" type="password" class="form-control" required />
+              <div class="d-flex justify-content-between align-items-baseline">
+                <label class="form-label" for="password">Password</label>
+                <RouterLink to="/forgot-password" class="small">Forgot password?</RouterLink>
+              </div>
+              <input id="password" v-model="password" type="password" class="form-control" autocomplete="current-password" required />
             </div>
             <button class="btn btn-success w-100" type="submit" :disabled="loading">Log in</button>
           </form>

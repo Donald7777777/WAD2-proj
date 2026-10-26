@@ -14,6 +14,9 @@ const props = defineProps({
   them: { type: String, required: true },
   state: { type: String, default: 'pending' }, // 'pending' | 'linked' | 'done' | 'broken' | 'declined'
   brokenLabel: { type: String, default: 'Trade cancelled' },
+  // Profile pictures (initials are shown if empty)
+  youSrc: { type: String, default: '' },
+  themSrc: { type: String, default: '' },
 })
 
 const HEIGHT = 64
@@ -94,7 +97,10 @@ watch(
   <section class="th-tlink" :data-state="state" :data-play="play" :aria-label="`Trade link: ${label}`">
     <div class="th-tlink-row">
       <div class="th-tlink-node th-tlink-you">
-        <span class="th-tlink-dot">{{ initials(you) }}</span>
+        <span class="th-tlink-dot">
+          <img v-if="youSrc" :src="youSrc" alt="" />
+          <template v-else>{{ initials(you) }}</template>
+        </span>
         <span class="th-tlink-name">You</span>
       </div>
 
@@ -127,7 +133,10 @@ watch(
       </div>
 
       <div class="th-tlink-node th-tlink-them">
-        <span class="th-tlink-dot">{{ initials(them) }}</span>
+        <span class="th-tlink-dot">
+          <img v-if="themSrc" :src="themSrc" alt="" />
+          <template v-else>{{ initials(them) }}</template>
+        </span>
         <span class="th-tlink-name">{{ them }}</span>
       </div>
     </div>

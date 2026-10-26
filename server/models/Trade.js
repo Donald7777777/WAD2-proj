@@ -42,16 +42,23 @@ const tradeSchema = new mongoose.Schema({
     checklist: [checklistItemSchema],
     proposerConfirmed: { type: Boolean, default: false },
     receiverConfirmed: { type: Boolean, default: false },
-    requests: { type: [addRequestSchema], default: [] }
-}, { timestamps: true });
+    requests: { type: [addRequestSchema], default: [] },
+    // Chat: when each trader last read the chat, by user id (for unread counts and "Seen")
+    lastRead: { type: Map, of: Date, default: () => new Map() }
+}, {
+    timestamps: true,
+    // If two people change the same trade at the same moment (e.g. both press Accept),
+    // the second save fails instead of silently overwriting the first
+    optimisticConcurrency: true
+});
 
 const Trade = mongoose.model('Trade', tradeSchema);
 
 exports.Trade = Trade;
 
 const populateFields = [
-    { path: 'proposer', select: 'name' },
-    { path: 'receiver', select: 'name' },
+    { path: 'proposer', select: 'name avatarUrl' },
+    { path: 'receiver', select: 'name avatarUrl' },
     { path: 'requestedListings' },
     { path: 'offeredListings' },
     { path: 'requests.listings' }

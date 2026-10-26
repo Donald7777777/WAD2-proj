@@ -6,6 +6,9 @@ import StatusBadge from './StatusBadge.vue'
 import ConditionBadge from './ConditionBadge.vue'
 import UserAvatar from './UserAvatar.vue'
 import AppIcon from './AppIcon.vue'
+import ListingReactions from './ListingReactions.vue'
+
+const emit = defineEmits(['reaction'])
 
 const props = defineProps({
   listing: Object,
@@ -39,6 +42,10 @@ onUnmounted(() => stopWatching())
         <span>No photo yet</span>
       </div>
       <span v-if="score" ref="pill" class="th-match-pill" :data-level="matchLevel">{{ shownScore }}% match</span>
+      <!-- Reserved: someone's offer was accepted, but you can still make a competing one -->
+      <span v-if="listing.status === 'reserved' && !showStatus" class="th-reserved-tag" title="Reserved for an accepted trade. You can still make a competing offer.">
+        <AppIcon name="clock" :size="13" />Reserved
+      </span>
       <span v-if="listing.images?.length > 1" class="th-photo-count" :aria-label="`${listing.images.length} photos`">
         <AppIcon name="image" :size="14" />{{ listing.images.length }}
       </span>
@@ -66,10 +73,18 @@ onUnmounted(() => stopWatching())
       </p>
       <div class="th-listing-owner">
         <template v-if="listing.owner?.name">
-          <UserAvatar :name="listing.owner.name" size="sm" />
-          <span>by {{ listing.owner.name }}</span>
+          <!-- Above the card's main link, so tapping the name opens their profile -->
+          <RouterLink v-if="listing.owner._id" :to="`/users/${listing.owner._id}`" class="th-listing-ownerlink">
+            <UserAvatar :name="listing.owner.name" :src="listing.owner.avatarUrl" size="sm" />
+            <span>by {{ listing.owner.name }}</span>
+          </RouterLink>
+          <template v-else>
+            <UserAvatar :name="listing.owner.name" :src="listing.owner.avatarUrl" size="sm" />
+            <span>by {{ listing.owner.name }}</span>
+          </template>
         </template>
-        <StatusBadge v-if="showStatus" :status="listing.status" class="ms-auto" />
+        <ListingReactions :listing="listing" class="ms-auto" @change="emit('reaction', $event)" />
+        <StatusBadge v-if="showStatus" :status="listing.status" />
       </div>
     </div>
 

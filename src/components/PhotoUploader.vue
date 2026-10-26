@@ -83,7 +83,7 @@ function makeCover(index) {
     </TransitionGroup>
 
     <input ref="input" type="file" accept="image/*" multiple class="visually-hidden" @change="onFiles" />
-    <div class="form-text">The first photo is the cover. Add up to {{ max }}; each under 5 MB.</div>
+    <div class="form-text">The first photo is the cover. Add up to {{ max }}; big photos are shrunk automatically.</div>
     <div v-if="error" class="th-field-error">{{ error }}</div>
   </div>
 </template>
