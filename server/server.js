@@ -6,6 +6,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
 const routes = require("./routes/routes");
+const { startReminders } = require("./utils/reminders");
 
 const server = express();
 const PORT = process.env.PORT || 8000;
@@ -55,7 +56,11 @@ function startServer() {
 }
 
 if (require.main === module) {
-    connectDB().then(startServer);
+    connectDB().then(() => {
+        startServer();
+        // Meetup reminders: checked every minute while the server runs
+        startReminders();
+    });
 }
 
 module.exports = server;

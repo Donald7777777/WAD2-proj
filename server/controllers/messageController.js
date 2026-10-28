@@ -93,6 +93,9 @@ function eventKind(text) {
     if (text.includes(' went to another trade, so this offer was withdrawn')) return 'offerWithdrawn';
     if (text.includes(' offered ') && text.includes('This is a competing offer')) return 'competingOffer';
     if (text.includes(' offered ')) return 'proposed';
+    if (text.startsWith('Reminder: your meetup')) return 'reminder';
+    if (text.startsWith("It's meetup time!")) return 'meetupNow';
+    if (text.startsWith('Did the swap happen?')) return 'meetupOverdue';
     if (text.includes(' changed their offer: ')) return 'offerEdited';
     if (text.includes(' changed the meetup to ')) return 'meetupChanged';
     if (text.includes(' set the meetup')) return 'meetup';
