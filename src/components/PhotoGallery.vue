@@ -6,6 +6,8 @@ import AppIcon from './AppIcon.vue'
 const props = defineProps({
   images: { type: Array, default: () => [] }, // [{ url }]
   title: { type: String, default: '' },
+  // Already traded: photos are blurred with a "Traded" stamp
+  traded: Boolean,
 })
 
 const index = ref(0)
@@ -50,7 +52,7 @@ function onKey(event) {
 </script>
 
 <template>
-  <div class="th-gallery">
+  <div class="th-gallery" :class="{ 'is-traded': traded }">
     <div
       class="th-detail-media th-gallery-main"
       :tabindex="count > 1 ? 0 : null"
@@ -59,6 +61,7 @@ function onKey(event) {
       @pointerup="onUp"
       @keydown="onKey"
     >
+      <span v-if="traded" class="th-traded-stamp th-traded-stamp-lg"><AppIcon name="check" :size="18" />Traded</span>
       <Transition :name="`th-slide-${direction}`">
         <img v-if="current" :key="current.url" :src="current.url" :alt="`${title}, photo ${index + 1}`" draggable="false" />
       </Transition>

@@ -3,6 +3,7 @@ const Listing = require('../models/Listing');
 const Message = require('../models/Message');
 const { buildChecklist } = require('../utils/checklists');
 const User = require('../models/User');
+const { Review } = require('../models/Review');
 const bus = require('../utils/events');
 
 // Two people changed the same trade at the same moment: the second one gets a friendly 409
@@ -182,6 +183,9 @@ exports.getMyTrades = async (req, res) => {
                 ...(since ? { createdAt: { $gt: since } } : {})
             });
             const ids = [...trade.requestedListings, ...trade.offeredListings].filter(Boolean).map(l => l._id);
+            t.reviewedByMe = trade.status === 'completed'
+                ? Boolean(await Review.exists({ trade: trade._id, from: me }))
+                : false;
             t.competing = ['pending', 'countered', 'accepted'].includes(trade.status)
                 ? await Trade.Trade.countDocuments({
                     _id: { $ne: trade._id },
@@ -480,6 +484,14 @@ exports.setMeetup = async (req, res) => {
         const { name, address, lat, lng, date, time } = req.body;
         if (!name || lat == null || lng == null || !date || !time) {
             return res.status(400).json({ error: 'Pick a location, date and time.' });
+        }
+        // Only today or later, and not a time that has already passed
+        const at = new Date(`${date}T${time}:00`);
+        if (Number.isNaN(at.getTime())) {
+            return res.status(400).json({ error: 'That date or time is not valid.' });
+        }
+        if (at < new Date(Date.now() - 5 * 60 * 1000)) {
+            return res.status(400).json({ error: 'Pick a date and time in the future.' });
         }
 
         const when = new Date(`${date}T${time}:00+08:00`);

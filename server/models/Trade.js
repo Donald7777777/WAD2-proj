@@ -48,6 +48,8 @@ const tradeSchema = new mongoose.Schema({
     proposerConfirmed: { type: Boolean, default: false },
     receiverConfirmed: { type: Boolean, default: false },
     requests: { type: [addRequestSchema], default: [] },
+    // Meetup reminders already sent for the current meetup (see utils/reminders.js)
+    reminders: { key: { type: String, default: '' }, sent: { type: [String], default: [] } },
     // Chat: when each trader last read the chat, by user id (for unread counts and "Seen")
     lastRead: { type: Map, of: Date, default: () => new Map() }
 }, {

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
@@ -16,6 +16,8 @@ import AddMoreRequests from '@/components/AddMoreRequests.vue'
 import ReviewForm from '@/components/ReviewForm.vue'
 import StarRating from '@/components/StarRating.vue'
 import { showToast } from '@/lib/toast'
+import { useNotificationStore } from '@/stores/notifications'
+import { formatMeetup, placeName } from '@/lib/format'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -152,20 +154,27 @@ function dismissedRating() {
 
 // ---------- Meetup changed by the other person ----------
 // The bell stays quiet while you're on this trade, so say it here
+// (When they first pick one, or change it.) The map and details update by themselves.
 watch(
-  () => trade.value?.meetup && `${trade.value.meetup.name}|${trade.value.meetup.date}|${trade.value.meetup.time}`,
-  (now, before) => {
+  () => (trade.value ? `${trade.value.meetup?.name || ''}|${trade.value.meetup?.date || ''}|${trade.value.meetup?.time || ''}` : null),
+  async (now, before) => {
     const m = trade.value?.meetup
-    if (!before || !now || now === before || !m?.name || String(m.setBy) === auth.user._id) return
-    if (!before.split('|')[0]) return // first time it was set
-    const when = [m.date, m.time].filter(Boolean).join(' at ')
-    showToast(`${m.name}${when ? `, ${when}` : ''}`, {
-      title: `${otherName.value} changed the meetup`,
+    // The first load isn't news
+    if (before === null || now === null || now === before || !m?.name || String(m.setBy) === auth.user._id) return
+    const first = !before.split('|')[0]
+    showToast(`${placeName(m.name)}, ${formatMeetup(m.date, m.time)}`, {
+      title: first ? `${otherName.value} picked the meetup` : `${otherName.value} changed the meetup`,
       icon: 'pin',
-      tone: 'danger',
-      duration: 7000,
+      tone: first ? 'success' : 'danger',
+      duration: 8000,
       onClick: () => document.querySelector('.th-meetup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     })
+    // Make the meetup card glow for a moment so it's easy to spot
+    await nextTick()
+    const card = document.querySelector('.th-meetup')
+    card?.classList.remove('is-updated')
+    void card?.offsetWidth
+    card?.classList.add('is-updated')
   },
 )
 
@@ -174,6 +183,11 @@ function retryOffer() {
   const item = theirItems.value[0]
   moment.value = null
   router.push(item ? `/listings/${item._id}/propose` : '/discover')
+}
+// After a cancelled or completed trade: back to Home
+function goHomeFromMoment() {
+  closeMoment()
+  router.push('/discover')
 }
 function keepBrowsing() {
   moment.value = null
@@ -351,6 +365,21 @@ async function sendCounter() {
 }
 
 onMounted(loadTrade)
+
+// Anything new on this trade from the other person (accept, meetup, checklist…): refresh at once,
+// so the meetup map, checklist and status update without reloading the page
+const notes = useNotificationStore()
+let refreshTimer = null
+const stopListening = notes.onTradeEvent((event) => {
+  if (!trade.value || String(event.tradeId) !== String(trade.value._id)) return
+  if (event.type !== 'notification' && event.type !== 'chat') return
+  clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(loadTrade, 250)
+})
+onUnmounted(() => {
+  stopListening()
+  clearTimeout(refreshTimer)
+})
 </script>
 
 <template>
@@ -378,6 +407,7 @@ onMounted(loadTrade)
       :you-src="auth.user.avatarUrl || ''"
       :them-src="otherUser.avatarUrl || ''"
       @close="closeMoment"
+      @home="goHomeFromMoment"
       @reviewed="onReviewed"
       @next="goToMeetup"
       @retry="retryOffer"
@@ -404,8 +434,9 @@ onMounted(loadTrade)
           <div class="th-proposal-sides">
             <div class="th-side th-side-you">
               <span class="th-side-label"><UserAvatar :name="auth.user.name" :src="auth.user.avatarUrl" you size="sm" />You give</span>
-              <RouterLink v-for="l in myItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link">
+              <RouterLink v-for="l in myItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link" :class="{ 'is-traded': trade.status === 'completed' }">
                 <span class="th-pick-thumb">
+                  <span v-if="trade.status === 'completed'" class="th-traded-mini">Traded</span>
                   <img v-if="l.imageUrl" :src="l.imageUrl" :alt="l.title" />
                   <AppIcon v-else name="image" />
                 </span>
@@ -418,8 +449,9 @@ onMounted(loadTrade)
             <span class="th-swap-disc" aria-hidden="true"><AppIcon name="swap" /></span>
             <div class="th-side th-side-them">
               <span class="th-side-label"><UserAvatar :name="otherName" :src="otherUser.avatarUrl" size="sm" />You get</span>
-              <RouterLink v-for="l in theirItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link">
+              <RouterLink v-for="l in theirItems" :key="l._id" :to="`/listings/${l._id}`" class="th-pick th-pick-static th-pick-link" :class="{ 'is-traded': trade.status === 'completed' }">
                 <span class="th-pick-thumb">
+                  <span v-if="trade.status === 'completed'" class="th-traded-mini">Traded</span>
                   <img v-if="l.imageUrl" :src="l.imageUrl" :alt="l.title" />
                   <AppIcon v-else name="image" />
                 </span>

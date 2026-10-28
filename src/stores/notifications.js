@@ -42,6 +42,9 @@ const LOOK = {
   competitor: { icon: 'alert', tone: 'danger', title: () => 'You have a competitor!' },
   competingOffer: { icon: 'swap', tone: 'success', title: (from) => `${from} made a competing offer` },
   offerClosed: { icon: 'x', tone: 'info', title: () => 'Offer closed' },
+  reminder: { icon: 'clock', tone: 'info', title: () => 'Meetup reminder', long: true },
+  meetupNow: { icon: 'pin', tone: 'success', title: () => "It's meetup time!", long: true },
+  meetupOverdue: { icon: 'alert', tone: 'danger', title: () => 'Did the swap happen?', long: true },
   offerWithdrawn: { icon: 'x', tone: 'info', title: () => 'Offer withdrawn' },
   offerEdited: { icon: 'edit', tone: 'info', title: (from) => `${from} changed their offer` },
   update: { icon: 'info', tone: 'info', title: (from) => `Update from ${from}` },
@@ -259,7 +262,8 @@ export const useNotificationStore = defineStore('notifications', () => {
   function handle(raw) {
     const onThisTrade = Boolean(raw.tradeId) && currentTradeId() === String(raw.tradeId)
     // You're already looking at this trade: its chat and pop-up show the update, so stay quiet
-    if (onThisTrade) return null
+    // (meetup reminders still show, they're worth seeing anywhere)
+    if (onThisTrade && !(LOOK[raw.kind] || LOOK.update).long) return null
     const item = makeItem(raw)
     items.value = [item, ...items.value].slice(0, MAX_ITEMS)
     if (raw.kind === 'liked' || raw.kind === 'saved') newLikes.value++
@@ -271,7 +275,7 @@ export const useNotificationStore = defineStore('notifications', () => {
         title: item.title,
         icon: item.icon,
         tone: item.tone,
-        duration: 5000,
+        duration: (LOOK[raw.kind] || LOOK.update).long ? 12000 : 5000,
         onClick: () => open(item),
       })
     }

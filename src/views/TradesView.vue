@@ -154,7 +154,7 @@ onUnmounted(() => {
       class="card th-trade-row"
       :class="{ 'is-action': tab === 'action', 'has-unread': trade.unread }"
     >
-      <span class="th-trade-thumbs" aria-hidden="true">
+      <span class="th-trade-thumbs" :class="{ 'is-traded': trade.status === 'completed' }" aria-hidden="true">
         <span class="th-thumb th-thumb-you">
           <img v-if="sides(trade).mine[0]?.imageUrl" :src="sides(trade).mine[0].imageUrl" alt="" />
           <AppIcon v-else name="image" :size="18" />

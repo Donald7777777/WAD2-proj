@@ -34,8 +34,9 @@ onUnmounted(() => stopWatching())
 </script>
 
 <template>
-  <article v-tilt class="card th-listing h-100">
+  <article v-tilt class="card th-listing h-100" :class="{ 'is-traded': listing.status === 'traded' }">
     <div class="th-listing-media">
+      <span v-if="listing.status === 'traded'" class="th-traded-stamp" aria-label="Traded"><AppIcon name="check" :size="14" />Traded</span>
       <img v-if="listing.imageUrl" :src="listing.imageUrl" :alt="listing.title" loading="lazy" />
       <div v-else class="th-listing-noimg">
         <AppIcon name="image" :size="28" />

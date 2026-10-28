@@ -542,3 +542,30 @@ main:focus { outline: none; }
 /* Very wide screens (or zoomed far out): the whole app stays at most 1920px wide, centred,
    so photos and cards don't keep growing while the text stays the same size. */
 .th-page { max-width: 1920px; margin-left: auto; margin-right: auto; }
+
+/* The meetup card glows when the other person sets or changes the meetup */
+.th-meetup.is-updated { animation: th-meetup-glow 2.4s ease; }
+@keyframes th-meetup-glow { 0%, 40% { box-shadow: 0 0 0 3px var(--lime), var(--shadow-card); } 100% { box-shadow: var(--shadow-card); } }
+
+/* Traded items: blurred and faded, with a "Traded" stamp, so it's obvious they're gone */
+.th-listing.is-traded .th-listing-media img,
+.th-listing.is-traded .th-listing-noimg { filter: blur(5px) grayscale(0.55); transform: scale(1.06); opacity: 0.8; }
+.th-listing.is-traded .th-listing-media { overflow: hidden; }
+.th-listing.is-traded .th-listing-body { opacity: 0.6; }
+.th-listing.is-traded:hover { transform: none; }
+.th-traded-stamp {
+  position: absolute; left: 50%; top: 50%; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+  border: 2px solid #fff; border-radius: 999px; background: rgba(16, 48, 42, 0.82); color: #fff; font: 800 13px/1 var(--font-display);
+  letter-spacing: 0.08em; text-transform: uppercase; transform: translate(-50%, -50%) rotate(-8deg); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+}
+.th-traded-stamp-lg { padding: 10px 22px; font-size: 18px; }
+.th-gallery.is-traded .th-gallery-main img { filter: blur(8px) grayscale(0.55); transform: scale(1.05); opacity: 0.85; }
+.th-gallery.is-traded .th-gallery-thumb img { filter: blur(2px) grayscale(0.6); }
+.th-pick.is-traded .th-pick-thumb { position: relative; overflow: hidden; }
+.th-pick.is-traded .th-pick-thumb img { filter: blur(3px) grayscale(0.6); opacity: 0.75; }
+.th-pick.is-traded .th-pick-title { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent); }
+.th-traded-mini {
+  position: absolute; inset: auto 0 0 0; z-index: 1; padding: 2px 0; background: rgba(16, 48, 42, 0.82); color: #fff;
+  font: 700 9px/12px var(--font-sans); letter-spacing: 0.06em; text-align: center; text-transform: uppercase;
+}
+.th-trade-thumbs.is-traded img { filter: blur(3px) grayscale(0.6); opacity: 0.75; }

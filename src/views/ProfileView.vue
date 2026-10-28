@@ -13,12 +13,12 @@ import ListingCard from '@/components/ListingCard.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import ReportDialog from '@/components/ReportDialog.vue'
+import DashboardPanel from '@/components/DashboardPanel.vue'
 
 // One profile page for everyone (/profile is yours, /users/:id is anyone's).
 //   Everyone sees: picture, name, rating, stats, and the Listings and Reviews tabs.
 //   Only you see:  your email, the picture/edit controls, and the private tabs
 //                  Looking for (your wants), Liked and Saved.
-// "Preview as others see it" hides your private parts so you can check.
 // The tab is in the address (?tab=reviews), so links and notifications can open the right one.
 const auth = useAuthStore()
 const notes = useNotificationStore()
@@ -27,22 +27,19 @@ const router = useRouter()
 
 const userId = computed(() => (route.name === 'user' ? String(route.params.id) : auth.user?._id))
 const isMe = computed(() => Boolean(auth.user) && userId.value === auth.user._id)
-const preview = ref(false) // you, looking at your profile the way others see it
-const showPrivate = computed(() => isMe.value && !preview.value)
+const showPrivate = computed(() => isMe.value)
 
 const PUBLIC_TABS = ['listings', 'reviews']
-const PRIVATE_TABS = ['wants', 'liked', 'saved']
+const PRIVATE_TABS = ['dashboard', 'wants', 'liked', 'saved']
+// Your own profile opens on your dashboard; everyone else's on their listings
+const defaultTab = computed(() => (showPrivate.value ? 'dashboard' : 'listings'))
 const tab = computed(() => {
   const asked = route.query.tab
   if (PUBLIC_TABS.includes(asked) || (showPrivate.value && PRIVATE_TABS.includes(asked))) return asked
-  return 'listings'
+  return defaultTab.value
 })
 function show(which) {
-  router.replace({ query: which === 'listings' ? {} : { tab: which } })
-}
-function togglePreview() {
-  preview.value = !preview.value
-  if (preview.value && PRIVATE_TABS.includes(route.query.tab)) show('listings')
+  router.replace({ query: which === defaultTab.value ? {} : { tab: which } })
 }
 
 // ---------- Data ----------
@@ -194,13 +191,6 @@ async function save() {
 <template>
   <div v-if="loadError" class="alert alert-danger">{{ loadError }}</div>
 
-  <!-- Previewing your own profile as others see it -->
-  <div v-if="isMe && preview" class="th-me-preview">
-    <AppIcon name="eye" :size="18" />
-    <span>This is how other people see your profile.</span>
-    <button type="button" class="btn btn-sm btn-primary" @click="togglePreview">Back to editing</button>
-  </div>
-
   <template v-if="profile">
     <!-- Header -->
     <header class="th-me-head">
@@ -228,20 +218,14 @@ async function save() {
         <button type="button" class="th-me-rating" @click="show('reviews')">
           <RatingSummary :rating="profile.rating" :size="18" />
         </button>
-        <div class="th-person-stats">
+        <!-- Trades, listings and member since: for other people (your own numbers are on your dashboard) -->
+        <div v-if="!isMe" class="th-person-stats">
           <span><AppIcon name="swap" :size="16" />{{ profile.tradesCompleted }} trade{{ profile.tradesCompleted === 1 ? '' : 's' }} completed</span>
           <span><AppIcon name="box" :size="16" />{{ profile.listings.length }} up for trade</span>
           <span><AppIcon name="clock" :size="16" />Member since {{ memberSince }}</span>
         </div>
-        <div v-if="showPrivate" class="th-profile-actions">
-          <button type="button" class="btn btn-sm btn-outline-dark" @click="togglePreview">
-            <AppIcon name="eye" :size="16" />Preview as others see it
-          </button>
-          <RouterLink to="/account" class="btn btn-sm btn-ghost"><AppIcon name="lock" :size="16" />Account settings</RouterLink>
-          <button v-if="avatarSrc" type="button" class="btn btn-sm btn-ghost" @click="removePhoto">Remove picture</button>
-        </div>
         <!-- Someone else: report or block them -->
-        <div v-else-if="!isMe && auth.user && !profile.deleted" class="th-profile-actions">
+        <div v-if="!isMe && auth.user && !profile.deleted" class="th-profile-actions">
           <button type="button" class="btn btn-sm btn-ghost th-quiet-danger" @click="reporting = true">
             <AppIcon name="flag" :size="16" />Report
           </button>
@@ -249,6 +233,12 @@ async function save() {
             <AppIcon name="x" :size="16" />{{ profile.blockedByMe ? 'Unblock' : 'Block' }}
           </button>
         </div>
+      </div>
+
+      <!-- Yours: settings top right -->
+      <div v-if="showPrivate" class="th-me-head-actions">
+        <RouterLink to="/account" class="btn btn-sm btn-outline-dark"><AppIcon name="lock" :size="16" />Account settings</RouterLink>
+        <button v-if="avatarSrc" type="button" class="btn btn-sm btn-ghost" @click="removePhoto">Remove picture</button>
       </div>
     </header>
 
@@ -261,6 +251,9 @@ async function save() {
 
     <!-- Tabs: public ones first, then yours (only you see them) -->
     <div class="th-tabs th-me-tabs" role="tablist">
+      <button v-if="showPrivate" type="button" role="tab" class="th-tab-btn th-tab-private" :aria-selected="tab === 'dashboard'" @click="show('dashboard')">
+        <AppIcon name="home" :size="16" />Dashboard
+      </button>
       <button type="button" role="tab" class="th-tab-btn" :aria-selected="tab === 'listings'" @click="show('listings')">
         <AppIcon name="box" :size="16" />Listings <span class="th-count">{{ profile.listings.length }}</span>
       </button>
@@ -285,8 +278,11 @@ async function save() {
       <AppIcon name="lock" :size="14" />Only you can see this tab.
     </p>
 
+    <!-- Dashboard (you only): next meetup, what needs you, stats, this week, activity, matches -->
+    <DashboardPanel v-if="tab === 'dashboard'" />
+
     <!-- Looking for (you only) -->
-    <section v-if="tab === 'wants'" class="card th-panel th-me-wants">
+    <section v-else-if="tab === 'wants'" class="card th-panel th-me-wants">
       <h2>What are you looking for?</h2>
       <p class="th-muted">
         Add categories or keywords (e.g. "film lens", "turntable"). We use these to find matches for you.
@@ -369,11 +365,8 @@ async function save() {
 .th-me-rating:hover .th-muted { text-decoration: underline; }
 .th-profile-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 
-.th-me-preview {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 18px;
-  border-radius: var(--radius-md); background: var(--lagoon-soft); color: var(--ink); font-size: 14px; font-weight: 600;
-}
-.th-me-preview .btn { margin-left: auto; }
+.th-me-info { flex: 1; }
+.th-me-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-self: flex-start; margin-left: auto; }
 
 .th-me-tabs { overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; }
 .th-me-tabs::-webkit-scrollbar { display: none; }
@@ -400,6 +393,8 @@ async function save() {
   .th-me-head .th-avatar-xl { width: 76px; height: 76px; font-size: 26px; }
   .th-avatar-edit-badge { width: 28px; height: 28px; right: -2px; bottom: -2px; }
   .th-me-info h1 { font-size: 26px; line-height: 32px; }
+  .th-me-head { flex-wrap: wrap; }
+  .th-me-head-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
   .th-me-tabs { gap: 0; }
   .th-me-tabs .th-tab-btn { padding: 10px 8px; gap: 4px; font-size: 13px; }
   .th-me-tabs .th-tab-btn > .th-icon { display: none; }

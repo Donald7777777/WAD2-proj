@@ -323,7 +323,7 @@ onUnmounted(() => {
           <span class="th-landing-hi">Hi, {{ auth.user.name.split(' ')[0] }}</span>
         </template>
         <RouterLink v-else to="/login" class="th-landing-link">Log in</RouterLink>
-        <RouterLink to="/discover" class="th-landing-link th-landing-skip">Enter site<AppIcon name="back" :size="16" class="th-flip" /></RouterLink>
+        <RouterLink :to="'/discover'" class="th-landing-link th-landing-skip">Enter site<AppIcon name="back" :size="16" class="th-flip" /></RouterLink>
       </nav>
     </header>
 
