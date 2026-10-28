@@ -26,13 +26,35 @@ const props = defineProps({
   youSrc: { type: String, default: '' },
   themSrc: { type: String, default: '' },
 })
-const emit = defineEmits(['close', 'next', 'retry', 'browse', 'reviewed'])
+const emit = defineEmits(['close', 'next', 'retry', 'browse', 'reviewed', 'home'])
+
+// After a cancelled or completed trade, head back to Home by itself once the animation is done.
+// A small countdown shows first, with "Stay here" to cancel it.
+const homeIn = ref(0)
+let homeTimer = null
+function startHomeCountdown(seconds = 4) {
+  clearInterval(homeTimer)
+  homeIn.value = seconds
+  homeTimer = setInterval(() => {
+    homeIn.value--
+    if (homeIn.value <= 0) {
+      clearInterval(homeTimer)
+      emit('home')
+    }
+  }, 1000)
+}
+function stayHere() {
+  clearInterval(homeTimer)
+  homeIn.value = 0
+}
 
 // 'completed': the rating form, then a thank-you
 const review = ref(null)
 function onReviewed(saved) {
   review.value = saved
   emit('reviewed', saved)
+  // Thanks shown: then back to Home
+  startHomeCountdown(4)
 }
 
 // The link inside starts open and changes once the card has popped in, so it animates
@@ -78,6 +100,8 @@ onMounted(async () => {
     timers.push(setTimeout(() => (linkState.value = 'declined'), 600))
   } else {
     timers.push(setTimeout(() => (linkState.value = 'broken'), 1500))
+    // Once the smile has snapped and the text is in, count down to Home
+    timers.push(setTimeout(() => startHomeCountdown(4), 2600))
   }
 })
 
@@ -90,6 +114,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onKey)
   document.body.style.overflow = ''
   timers.forEach(clearTimeout)
+  clearInterval(homeTimer)
 })
 </script>
 
@@ -115,7 +140,7 @@ onUnmounted(() => {
       <div v-if="kind === 'completed'" class="th-moment-review">
         <ReviewForm v-if="!review && tradeId" :trade-id="tradeId" :them="them" @done="onReviewed">
           <template #secondary>
-            <button type="button" class="btn btn-ghost" @click="close">Maybe later</button>
+            <button type="button" class="btn btn-ghost" @click="emit('home')">Maybe later</button>
           </template>
         </ReviewForm>
         <div v-else-if="review" class="th-moment-thanks">
@@ -126,7 +151,7 @@ onUnmounted(() => {
 
       <div v-if="kind !== 'completed' || review" class="th-moment-actions">
         <template v-if="kind === 'completed'">
-          <button type="button" class="btn btn-primary" @click="close">Done</button>
+          <button type="button" class="btn btn-primary" @click="emit('home')"><AppIcon name="home" :size="18" />Go home</button>
         </template>
         <template v-else-if="kind === 'linked'">
           <button type="button" class="btn btn-ghost" @click="close">Close</button>
@@ -138,8 +163,15 @@ onUnmounted(() => {
         </template>
         <template v-else>
           <button v-if="nextLabel !== 'Pick a meetup spot'" type="button" class="btn btn-ghost" @click="emit('next')">{{ nextLabel }}</button>
-          <button type="button" class="btn btn-primary" @click="close">OK</button>
+          <button type="button" class="btn btn-primary" @click="emit('home')"><AppIcon name="home" :size="18" />Go home</button>
         </template>
+      </div>
+
+      <!-- Heading back to Home by itself -->
+      <div v-if="homeIn > 0" class="th-moment-homebar" role="status">
+        <span class="th-moment-homebar-track"><span :style="{ animationDuration: '4s' }"></span></span>
+        <span>Taking you home in {{ homeIn }}s</span>
+        <button type="button" class="th-link small" @click="stayHere">Stay here</button>
       </div>
     </div>
   </div>
@@ -207,6 +239,13 @@ onUnmounted(() => {
 .th-moment-you { background: var(--lime-soft); } .th-moment-you span { color: var(--lime-ink); }
 .th-moment-them { background: var(--lagoon-soft); } .th-moment-them span { color: var(--lagoon); }
 .th-moment-swap { display: inline-flex; width: 34px; height: 34px; align-items: center; justify-content: center; border-radius: 50%; background: var(--ink); color: var(--on-ink); }
+
+/* "Taking you home in 3s": a bar that empties, plus Stay here */
+.th-moment-homebar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: var(--ink-muted); }
+.th-moment-homebar button { border: 0; background: none; padding: 0; }
+.th-moment-homebar-track { position: relative; width: 80px; height: 4px; border-radius: 999px; background: var(--paper-sunk); overflow: hidden; }
+.th-moment-homebar-track span { position: absolute; inset: 0; background: var(--emerald); transform-origin: left; animation: th-homebar linear forwards; }
+@keyframes th-homebar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 /* Congratulations: bigger title, and the rating form rises in last */
 .th-moment[data-kind="completed"] .th-moment-title { font-size: 40px; background: linear-gradient(90deg, var(--lime-ink), var(--emerald), var(--lagoon)); -webkit-background-clip: text; background-clip: text; color: transparent; }

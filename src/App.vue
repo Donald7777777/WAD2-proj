@@ -52,6 +52,12 @@ function openOfferTrade() {
   router.push(`/trades/${id}`)
 }
 
+// After a cancelled or completed trade: back to Home
+function goHome() {
+  notes.moment = null
+  router.push('/discover')
+}
+
 function openMomentTrade() {
   const id = notes.moment.tradeId
   notes.moment = null
@@ -89,6 +95,7 @@ function openMomentTrade() {
     next-label="Open the trade"
     next-icon="swap"
     @close="notes.moment = null"
+    @home="goHome"
     @next="openMomentTrade"
     @retry="retryOffer"
     @browse="keepBrowsing"

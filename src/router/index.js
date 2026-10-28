@@ -9,6 +9,8 @@ const router = createRouter({
     { path: '/', name: 'landing', component: () => import('../views/LandingView.vue'), meta: { bare: true } },
     // Discover (browse + matches) is the app's home page
     { path: '/discover', name: 'home', component: HomeView },
+    // The dashboard lives on your profile now (old links still work)
+    { path: '/home', redirect: '/profile' },
     { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
     { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
     { path: '/forgot-password', name: 'forgot', component: () => import('../views/ForgotPasswordView.vue') },

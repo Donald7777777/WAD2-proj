@@ -63,7 +63,7 @@ onMounted(async () => {
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
   <div v-if="listing" class="th-detail">
-    <PhotoGallery :images="photos" :title="listing.title" />
+    <PhotoGallery :images="photos" :title="listing.title" :traded="listing.status === 'traded'" />
 
     <div class="th-detail-info">
       <span class="eyebrow th-muted">{{ listing.category }}</span>

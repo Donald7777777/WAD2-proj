@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import AppIcon from './AppIcon.vue'
 import MeetupMap from './MeetupMap.vue'
+import MeetupWhen from './MeetupWhen.vue'
 import { formatMeetup, placeName } from '@/lib/format'
 
 const props = defineProps({
@@ -23,7 +24,19 @@ const date = ref(props.meetup?.date || '')
 const time = ref(props.meetup?.time || '')
 const editing = ref(!props.meetup?.name)
 
-const today = new Date().toISOString().split('T')[0]
+// The saved meetup changed (you saved it, or the other person just set or changed it):
+// show it straight away, no reload needed
+watch(
+  () => props.meetup && `${props.meetup.name}|${props.meetup.date}|${props.meetup.time}|${props.meetup.lat}|${props.meetup.lng}`,
+  (now, before) => {
+    if (!now || now === before || !props.meetup?.name) return
+    place.value = { ...props.meetup }
+    date.value = props.meetup.date || ''
+    time.value = props.meetup.time || ''
+    results.value = []
+    editing.value = false
+  },
+)
 
 // Quick searches for common public meetup points
 const suggestions = ['MRT station', 'Bus interchange', 'Shopping mall', 'Library']
@@ -149,17 +162,12 @@ function save() {
 
       <div v-if="place" class="th-meetup-chosen">
         <h3 class="th-meetup-place">{{ placeName(place.name) }}</h3>
-        <div class="row g-3">
-          <div class="col-sm-6">
-            <label class="form-label" for="meetup-date">Date</label>
-            <input id="meetup-date" v-model="date" type="date" class="form-control" :min="today" />
-          </div>
-          <div class="col-sm-6">
-            <label class="form-label" for="meetup-time">Time</label>
-            <input id="meetup-time" v-model="time" type="time" class="form-control" />
-          </div>
+        <!-- Day and time (only today or later) -->
+        <MeetupWhen v-model:date="date" v-model:time="time" />
+        <div class="th-meetup-save">
+          <button v-if="meetup?.name" class="btn btn-ghost" type="button" @click="editing = false">Cancel</button>
+          <button class="btn btn-primary" type="button" :disabled="!date || !time" @click="save">Save meetup</button>
         </div>
-        <button class="btn btn-primary mt-3" @click="save">Save meetup</button>
       </div>
     </div>
 
@@ -173,4 +181,7 @@ function save() {
   display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border-radius: 50%;
   border: 2px solid #12352D; color: #12352D; font: 700 12px/1 var(--font-sans);
 }
+</style>
+<style>
+.th-meetup-save { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 </style>

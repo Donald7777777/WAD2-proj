@@ -8,6 +8,7 @@ defineProps({
 })
 
 const paths = {
+  home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h11V10"/><path d="M10 19.5v-5h4v5"/>',
   discover: '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2.2 4.8-4.8 2.2 2.2-4.8z"/>',
   spark: '<path d="M12 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z"/>',
   swap: '<path d="M7 7.5h11.5l-3.5-3.5M17 16.5H5.5L9 20"/>',
