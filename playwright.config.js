@@ -1,110 +1,92 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import process from 'node:process'
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * Two kinds of E2E tests live in e2e/:
+ *
+ *   e2e/mocked  fast UI tests with a fake API (no backend, no database needed)
+ *   e2e/real    the real thing: browser -> Vue app -> Express -> MongoDB, one spec file per core feature
+ *
+ * Run them:   pnpm test:e2e                  everything
+ *             pnpm test:e2e --project=real   only the real-stack tests
+ *             HEADED=1 pnpm test:e2e         watch the browser
+ *
+ * The real tests NEVER touch your normal data. Playwright starts its own copies of the app on its own ports
+ * (Vite on 5174, Express on 8100) and points Express at a separate database called "tradehappy_e2e"
+ * (same MongoDB server as server/config.env, different database name). Each test registers its own
+ * brand new users and listings, so nothing needs resetting.
  */
-// require('dotenv').config();
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+const VITE_PORT = 5174
+const API_PORT = 8100
+
+// Work out the test database from server/config.env (or E2E_DB when set, e.g. in CI)
+function testDatabaseUrl() {
+  if (process.env.E2E_DB) return process.env.E2E_DB
+  const file = path.resolve('server/config.env')
+  const line = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/).find((l) => l.startsWith('DB=')) : ''
+  const uri = (line || '').slice(3).trim()
+  const match = uri.match(/^(mongodb(?:\+srv)?:\/\/[^/]+\/)([^?]*)(\?.*)?$/)
+  if (!match) {
+    throw new Error('Could not find DB=... in server/config.env. Set E2E_DB to a MongoDB connection string for the tests.')
+  }
+  return `${match[1]}tradehappy_e2e${match[3] || ''}`
+}
+
 export default defineConfig({
   testDir: './e2e',
-  /* Maximum time one test can run for. */
   timeout: 30 * 1000,
-  expect: {
-    /**
-     * Maximum time expect() should wait for the condition to be met.
-     * For example in `await expect(locator).toHaveText();`
-     */
-    timeout: 5000,
-  },
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
+  expect: { timeout: 5000 },
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+  reporter: process.env.CI ? 'html' : [['list'], ['html', { open: 'never' }]],
+
   use: {
-    /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
-    actionTimeout: 0,
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
-
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    baseURL: `http://localhost:${VITE_PORT}`,
     trace: 'on-first-retry',
-
-    /* Only on CI systems run the tests headless */
-    headless: !!process.env.CI,
+    screenshot: 'only-on-failure',
+    // Headless by default; run `HEADED=1 pnpm test:e2e` to watch the browser
+    headless: !process.env.HEADED,
   },
 
-  /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-    {
-      name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-      },
-    },
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-      },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: {
-    //     ...devices['Pixel 5'],
-    //   },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: {
-    //     ...devices['iPhone 12'],
-    //   },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: {
-    //     channel: 'msedge',
-    //   },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: {
-    //     channel: 'chrome',
-    //   },
-    // },
+    { name: 'mocked', testDir: './e2e/mocked', use: { ...devices['Desktop Chrome'] } },
+    { name: 'real', testDir: './e2e/real', timeout: 60 * 1000, use: { ...devices['Desktop Chrome'] } },
+    // More browsers if you want them:
+    // { name: 'firefox', testDir: './e2e/real', use: { ...devices['Desktop Firefox'] } },
+    // { name: 'webkit', testDir: './e2e/real', use: { ...devices['Desktop Safari'] } },
   ],
 
-  /* Folder for test artifacts such as screenshots, videos, traces, etc. */
-  // outputDir: 'test-results/',
-
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    /**
-     * Use the dev server by default for faster feedback loop.
-     * Use the preview server on CI for more realistic testing.
-     * Playwright will re-use the local server if there is already a dev-server running.
-     */
-    command: process.env.CI ? 'npm run preview' : 'npm run dev',
-    port: process.env.CI ? 4173 : 5173,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    // Express API on its own port, using the separate test database.
+    // (Set E2E_NO_API=1 to skip it when you only run the mocked tests, e.g. without internet / MongoDB.)
+    ...(process.env.E2E_NO_API
+      ? []
+      : [
+          {
+            command: 'node server.js',
+            cwd: './server',
+            url: `http://localhost:${API_PORT}/api/auth/me`,
+            reuseExistingServer: !process.env.CI,
+            timeout: 60 * 1000,
+            env: { DB: testDatabaseUrl(), PORT: String(API_PORT) },
+          },
+        ]),
+    {
+      // Vue app (Vite). Its /api proxy points at the test API above.
+      command: `npx vite --port ${VITE_PORT} --strictPort`,
+      port: VITE_PORT,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60 * 1000,
+      env: {
+        API_URL: `http://localhost:${API_PORT}`,
+        // Fake Supabase settings: photo upload isn't tested, and tests must never touch the real project
+        VITE_SUPABASE_URL: 'http://localhost:54321',
+        VITE_SUPABASE_ANON_KEY: 'e2e-test-key',
+      },
+    },
+  ],
 })

@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -18,7 +19,7 @@ export default defineConfig({
   server: {
     // Forward /api requests to the Express server, so the login cookie works without CORS
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': process.env.API_URL || 'http://localhost:8000',
     },
   },
 })
