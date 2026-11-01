@@ -54,11 +54,12 @@ const LOOK = {
   availableAgain: { icon: 'spark', tone: 'success', title: () => 'Back up for trade!' },
   switched: { icon: 'x', tone: 'danger', title: (from) => `${from} went with another offer` },
   counterPaused: { icon: 'clock', tone: 'info', title: () => 'Counter offer paused' },
+  ownerNegotiating: { icon: 'chat', tone: 'danger', title: () => 'The owner is negotiating' },
   update: { icon: 'info', tone: 'info', title: (from) => `Update from ${from}` },
 }
 
 // Notifications about an item's offers open that item's offers list rather than a trade
-const LISTING_KINDS = ['competitor', 'rivalChanged', 'rivalLeft', 'reservedElsewhere', 'availableAgain']
+const LISTING_KINDS = ['competitor', 'rivalChanged', 'rivalLeft', 'reservedElsewhere', 'availableAgain', 'ownerNegotiating']
 // Notifications that end (or change) a trade show the big pop-up
 const MOMENT_KINDS = ['accepted', 'rejected', 'cancelled', 'switched', 'completed']
 

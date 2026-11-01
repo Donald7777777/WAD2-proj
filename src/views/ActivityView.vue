@@ -118,7 +118,7 @@ function pickListing(id) {
 
   <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-  <div class="th-activity-layout">
+  <div class="th-activity-layout" :class="{ 'has-side': !loading && rows.length }">
     <!-- Totals and most-loved listings -->
     <aside v-if="!loading && rows.length" class="th-activity-side">
       <div class="card th-activity-totals">
@@ -205,13 +205,14 @@ function pickListing(id) {
 </template>
 
 <style>
-/* Feed and side panel share the full width; the panel is on the right from 992px */
+/* Feed and side panel share the full width; the panel is on the right from 992px.
+   With no likes yet there's no panel, so the feed (or the empty message) takes the whole row. */
 .th-activity-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (min-width: 992px) {
-  .th-activity-layout { grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; }
+  .th-activity-layout.has-side { grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; }
   .th-activity-side { order: 2; position: sticky; top: 88px; }
 }
-@media (min-width: 1400px) { .th-activity-layout { grid-template-columns: minmax(0, 1fr) 400px; } }
+@media (min-width: 1400px) { .th-activity-layout.has-side { grid-template-columns: minmax(0, 1fr) 400px; } }
 .th-activity-main { min-width: 0; }
 .th-activity-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 

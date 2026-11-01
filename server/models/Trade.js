@@ -39,6 +39,8 @@ const tradeSchema = new mongoose.Schema({
     // The owner's counter offer was put on hold because they accepted another offer for the item
     // (it's back to the owner's turn; only they can decide to switch)
     paused: { type: Boolean, default: false },
+    // The other bidders were told the owner started negotiating on this trade (only told once)
+    rivalsToldNegotiating: { type: Boolean, default: false },
     meetup: {
         name: String,
         address: String,

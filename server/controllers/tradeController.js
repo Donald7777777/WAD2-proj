@@ -104,6 +104,20 @@ function titlesOf(listings) {
     return listings.map(l => l.title).join(', ');
 }
 
+// The owner started negotiating with one bidder (first counter or "could you add more?"): the
+// other bidders for the same item are told once, so they can improve their offer in time
+async function alertRivalsOfNegotiation(trade, session) {
+    if (trade.rivalsToldNegotiating) return;
+    await Trade.Trade.updateOne({ _id: trade._id }, { $set: { rivalsToldNegotiating: true } });
+    const requested = trade.requestedListings.filter(l => l && l.title);
+    const listings = requested.length ? requested : await Listing.Listing.find({ _id: { $in: trade.requestedListings } });
+    await alertOthers({
+        listings, exceptTradeId: trade._id, actorId: session.userId,
+        kind: 'ownerNegotiating', statuses: ['pending', 'countered'],
+        text: (shared) => `Heads up: ${session.userName} is negotiating with another bidder for ${listTitles(shared)}. Your offer is still open, so improve it to stay in the running.`
+    });
+}
+
 // A bidder changed what they're giving (edited, countered, or added items): everyone else with a
 // live offer for the same item hears about it, so they can improve theirs
 function alertRivalsOfChange(tradeId, requestedListings, session) {
@@ -398,8 +412,10 @@ exports.counterTrade = async (req, res) => {
         await Message.addSystemMessage(trade._id,
             `${req.session.userName} countered: ${titlesOf(offered)} for ${titlesOf(requested)}.`,
             { kind: 'countered', by: userId });
-        // The bidder changed what they're giving: the other bidders for this item hear about it
+        // The bidder changed what they're giving: the other bidders for this item hear about it.
+        // The owner countering: the other bidders hear they're negotiating with someone (once).
         if (isProposer(trade, userId)) await alertRivalsOfChange(trade._id, requested, req.session);
+        else await alertRivalsOfNegotiation(trade, req.session);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -448,6 +464,8 @@ exports.requestMore = async (req, res) => {
         await Message.addSystemMessage(trade._id,
             `${req.session.userName} asked ${otherName} to add ${what} to the trade.${note ? ` "${note}"` : ''}`,
             { kind: 'requested', by: userId });
+        // The owner asking a bidder for more counts as negotiating with them
+        if (!isProposer(trade, userId)) await alertRivalsOfNegotiation(trade, req.session);
         res.status(201).json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
