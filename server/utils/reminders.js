@@ -80,7 +80,8 @@ async function checkReminders(now = new Date()) {
         const done = STEPS.slice(0, STEPS.indexOf(step) + 1);
         // A plain update (never clashes with other changes to the trade)
         await Trade.updateOne({ _id: trade._id }, { $set: { reminders: { key, sent: [...new Set([...already, ...done])] } } });
-        await Message.addSystemMessage(trade._id, reminderText(step, trade.meetup, at, now));
+        await Message.addSystemMessage(trade._id, reminderText(step, trade.meetup, at, now),
+            { kind: step === 'now' ? 'meetupNow' : step === 'overdue' ? 'meetupOverdue' : 'reminder' });
         sent++;
     }
     return sent;

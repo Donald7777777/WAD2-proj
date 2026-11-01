@@ -41,7 +41,8 @@ exports.createReview = async (req, res) => {
         const review = await Review.create({ trade: trade._id, from: me, to, rating, comment });
 
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} left ${otherName} a ${rating}-star review${comment ? `: "${comment}"` : '.'}`);
+            `${req.session.userName} left ${otherName} a ${rating}-star review${comment ? `: "${comment}"` : '.'}`,
+            { kind: 'reviewed', by: me });
         res.status(201).json({ review });
     } catch (err) {
         console.error(err);

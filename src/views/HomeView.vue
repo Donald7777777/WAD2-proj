@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 import { api, errorMessage } from '@/lib/api'
 import { CATEGORIES } from '@/lib/constants'
 import ListingCard from '@/components/ListingCard.vue'
@@ -120,6 +121,52 @@ function pickCategory(name) {
 onMounted(() => {
   loadListings()
   loadMatches()
+})
+
+// An item on screen was reserved, traded or freed up: update its card live
+// (traded items leave Discover, like they would on a reload)
+const notes = useNotificationStore()
+const changed = new Set()
+let refreshTimer = null
+async function refreshChanged() {
+  const ids = [...changed]
+  changed.clear()
+  await Promise.all(
+    ids.map(async (id) => {
+      let fresh = null
+      try {
+        fresh = (await api.get(`/listings/${id}`)).data
+      } catch {
+        // Deleted: drop it below
+      }
+      const gone = !fresh || fresh.status === 'traded'
+      // Discover: plain listings
+      const i = listings.value.findIndex((l) => l._id === id)
+      if (i !== -1) {
+        if (gone) listings.value.splice(i, 1)
+        else listings.value[i] = { ...listings.value[i], status: fresh.status }
+      }
+      // Matches: { listing, score, mutual }
+      const m = matches.value.findIndex((x) => x.listing?._id === id)
+      if (m !== -1) {
+        if (gone) matches.value.splice(m, 1)
+        else matches.value[m] = { ...matches.value[m], listing: { ...matches.value[m].listing, status: fresh.status } }
+      }
+    }),
+  )
+}
+const stopListening = notes.onTradeEvent((event) => {
+  if (event.type !== 'listing') return
+  const shown = new Set([...listings.value.map((l) => l._id), ...matches.value.map((x) => x.listing?._id)])
+  const ids = (event.ids || []).filter((id) => shown.has(id))
+  if (!ids.length) return
+  ids.forEach((id) => changed.add(id))
+  clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(refreshChanged, 400)
+})
+onUnmounted(() => {
+  stopListening()
+  clearTimeout(refreshTimer)
 })
 </script>
 

@@ -145,10 +145,24 @@ async function removePhoto() {
 const reporting = ref(false)
 async function toggleBlock() {
   const name = profile.value.name
-  if (!profile.value.blockedByMe && !confirm(`Block ${name}? You won't see each other's listings, and any open proposals between you will be closed.`)) return
+  if (
+    !profile.value.blockedByMe &&
+    !confirm(
+      `Block ${name}? You won't see each other's listings, and any open proposals between you will be closed. ` +
+        `Trades you've already accepted stay open, but chat between you will be turned off.`,
+    )
+  )
+    return
   try {
-    const nowBlocked = await auth.toggleBlock(profile.value._id)
+    const { blocked: nowBlocked, acceptedTrades } = await auth.toggleBlock(profile.value._id)
     showToast(nowBlocked ? `${name} is blocked.` : `${name} is unblocked.`, { icon: 'user', tone: 'info' })
+    if (nowBlocked && acceptedTrades) {
+      showToast(
+        `You still have ${acceptedTrades === 1 ? 'an accepted trade' : `${acceptedTrades} accepted trades`} with ${name}. ` +
+          'Chat is off, but you can still meet up and confirm, or cancel it from My trades.',
+        { title: 'Accepted trade still open', icon: 'alert', tone: 'info', duration: 9000, onClick: () => router.push('/trades') },
+      )
+    }
     await loadProfile()
   } catch (e) {
     showToast(errorMessage(e), { tone: 'danger', icon: 'x' })

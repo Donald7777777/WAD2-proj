@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bus = require('../utils/events');
 
 const checklistItemSchema = new mongoose.Schema({
     text: String,
@@ -35,6 +36,9 @@ const tradeSchema = new mongoose.Schema({
     },
     // Whose turn it is to accept / reject / counter
     turn: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // The owner's counter offer was put on hold because they accepted another offer for the item
+    // (it's back to the owner's turn; only they can decide to switch)
+    paused: { type: Boolean, default: false },
     meetup: {
         name: String,
         address: String,
@@ -57,6 +61,14 @@ const tradeSchema = new mongoose.Schema({
     // If two people change the same trade at the same moment (e.g. both press Accept),
     // the second save fails instead of silently overwriting the first
     optimisticConcurrency: true
+});
+
+// Whenever a trade is saved (new offer, edited, countered, accepted, cancelled...), tell every open
+// page which items it involves, so their offers list refreshes live
+tradeSchema.post('save', (trade) => {
+    const ids = [...(trade.requestedListings || []), ...(trade.offeredListings || [])]
+        .filter(Boolean).map((l) => (l._id || l).toString());
+    if (ids.length) bus.emit('listings', ids);
 });
 
 const Trade = mongoose.model('Trade', tradeSchema);

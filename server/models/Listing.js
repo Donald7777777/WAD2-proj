@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bus = require('../utils/events');
 
 const listingSchema = new mongoose.Schema({
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -49,4 +50,10 @@ exports.editListing = (id, data) => Listing.findByIdAndUpdate(id, data, { return
 
 exports.deleteListing = (id) => Listing.findByIdAndDelete(id);
 
-exports.setStatus = (ids, status) => Listing.updateMany({ _id: { $in: ids } }, { status });
+// Changing an item's status (available / reserved / traded) also tells every open page about it,
+// so Discover and the listing page update live
+exports.setStatus = async (ids, status) => {
+    const result = await Listing.updateMany({ _id: { $in: ids } }, { status });
+    bus.emit('listings', ids.map((id) => (id && id._id ? id._id : id).toString()));
+    return result;
+};

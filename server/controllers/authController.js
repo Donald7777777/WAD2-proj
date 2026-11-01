@@ -56,7 +56,7 @@ exports.login = async (req, res) => {
         req.session.userId = user._id.toString();
         req.session.userName = user.name;
 
-        res.json({ _id: user._id, name: user.name, email: user.email, wants: user.wants, avatarUrl: user.avatarUrl });
+        res.json({ _id: user._id, name: user.name, email: user.email, wants: user.wants, avatarUrl: user.avatarUrl, blocked: user.blocked || [] });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to log in.' });

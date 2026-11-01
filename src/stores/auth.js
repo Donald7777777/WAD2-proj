@@ -42,11 +42,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // Block or unblock someone; keeps user.blocked (a list of ids) up to date
+  // Returns { blocked, acceptedTrades }: acceptedTrades = deals with them that are still on
+  // (they stay open, but chat between you is off)
   async function toggleBlock(id) {
     const { data } = await api.post(`/users/${id}/block`)
     const others = (user.value.blocked || []).filter((b) => String(b) !== String(id))
     user.value = { ...user.value, blocked: data.blocked ? [...others, id] : others }
-    return data.blocked
+    return { blocked: data.blocked, acceptedTrades: data.acceptedTrades || 0 }
   }
 
   return { user, loaded, fetchUser, login, register, logout, saveWants, saveAvatar, toggleBlock }

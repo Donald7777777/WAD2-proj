@@ -47,8 +47,20 @@ const LOOK = {
   meetupOverdue: { icon: 'alert', tone: 'danger', title: () => 'Did the swap happen?', long: true },
   offerWithdrawn: { icon: 'x', tone: 'info', title: () => 'Offer withdrawn' },
   offerEdited: { icon: 'edit', tone: 'info', title: (from) => `${from} changed their offer` },
+  // About the other offers on an item you're bidding for (from someone else's trade, so no name)
+  rivalChanged: { icon: 'swap', tone: 'danger', title: () => 'A rival changed their offer' },
+  rivalLeft: { icon: 'user', tone: 'info', title: () => 'A rival dropped out' },
+  reservedElsewhere: { icon: 'clock', tone: 'info', title: () => 'Reserved for another trade' },
+  availableAgain: { icon: 'spark', tone: 'success', title: () => 'Back up for trade!' },
+  switched: { icon: 'x', tone: 'danger', title: (from) => `${from} went with another offer` },
+  counterPaused: { icon: 'clock', tone: 'info', title: () => 'Counter offer paused' },
   update: { icon: 'info', tone: 'info', title: (from) => `Update from ${from}` },
 }
+
+// Notifications about an item's offers open that item's offers list rather than a trade
+const LISTING_KINDS = ['competitor', 'rivalChanged', 'rivalLeft', 'reservedElsewhere', 'availableAgain']
+// Notifications that end (or change) a trade show the big pop-up
+const MOMENT_KINDS = ['accepted', 'rejected', 'cancelled', 'switched', 'completed']
 
 const desktopSupported = typeof window !== 'undefined' && 'Notification' in window
 
@@ -71,7 +83,8 @@ export const useNotificationStore = defineStore('notifications', () => {
   let stream = null
   const statuses = new Map() // tradeId -> last known status
   const seen = new Set() // ids already shown (the live stream and the safety-net check can both send one)
-  // Trade-page listeners: (event) => void, event = { type: 'chat' | 'typing' | 'read' | 'notification', tradeId, ... }
+  // Page listeners: (event) => void, event = { type: 'chat' | 'typing' | 'read' | 'notification', tradeId, ... }
+  // or { type: 'listing', ids } when items change status or their offers change
   const tradeListeners = new Set()
   function onTradeEvent(fn) {
     tradeListeners.add(fn)
@@ -99,7 +112,7 @@ export const useNotificationStore = defineStore('notifications', () => {
   // Where tapping a notification goes: the trade, your likes activity, or your reviews
   function open(item) {
     if (item.kind === 'liked' || item.kind === 'saved') router?.push(`/activity?listing=${item.listingId}`)
-    else if (item.kind === 'competitor' && item.listingId) router?.push(`/listings/${item.listingId}#offers`)
+    else if (LISTING_KINDS.includes(item.kind) && item.listingId) router?.push(`/listings/${item.listingId}#offers`)
     else if (item.kind === 'reviewed') router?.push('/profile?tab=reviews')
     else if (item.tradeId) openTrade(item.tradeId)
   }
@@ -125,11 +138,11 @@ export const useNotificationStore = defineStore('notifications', () => {
     if (item.kind === 'rejected') {
       kind = 'declined'
       title = 'Proposal declined'
-    } else if (item.kind === 'cancelled') {
+    } else if (item.kind === 'cancelled' || item.kind === 'switched') {
       kind = 'broken'
       title = previousStatus === 'accepted' ? 'Trade cancelled' : 'Proposal withdrawn'
       // The owner switched to a competing offer
-      if (item.text?.includes('to go with another offer')) title = 'They went with another offer'
+      if (item.kind === 'switched' || item.text?.includes('to go with another offer')) title = 'They went with another offer'
     } else if (item.kind === 'completed') {
       kind = 'completed'
       title = 'Congratulations!'
@@ -293,9 +306,9 @@ export const useNotificationStore = defineStore('notifications', () => {
     // Competing offers: their own pop-up too
     if (raw.kind === 'competitor' || raw.kind === 'competingOffer') showOfferMoment(raw)
     const item = handle(raw)
-    if (item && ['accepted', 'rejected', 'cancelled', 'completed'].includes(raw.kind)) showMoment(raw, previousStatus)
+    if (item && MOMENT_KINDS.includes(raw.kind)) showMoment(raw, previousStatus)
     // Remember the trade's new status (for "cancelled" vs "withdrawn" next time)
-    const next = { accepted: 'accepted', rejected: 'rejected', cancelled: 'cancelled', completed: 'completed' }[raw.kind]
+    const next = { accepted: 'accepted', rejected: 'rejected', cancelled: 'cancelled', switched: 'cancelled', completed: 'completed' }[raw.kind]
     if (next) statuses.set(String(raw.tradeId), next)
   }
 
@@ -342,8 +355,8 @@ export const useNotificationStore = defineStore('notifications', () => {
     })
     // The newest big moment of each kind still pops up (trade result, review, competing offer)
     const newest = (kinds) => [...missed].reverse().find((raw) => kinds.includes(raw.kind))
-    const trade = newest(['accepted', 'rejected', 'cancelled', 'completed'])
-    if (trade) showMoment(trade, trade.kind === 'cancelled' ? 'accepted' : undefined)
+    const trade = newest(MOMENT_KINDS)
+    if (trade) showMoment(trade, ['cancelled', 'switched'].includes(trade.kind) ? 'accepted' : undefined)
     const review = newest(['reviewed'])
     if (review) showReviewMoment(review)
     const offer = newest(['competitor', 'competingOffer'])
@@ -362,8 +375,9 @@ export const useNotificationStore = defineStore('notifications', () => {
         // Ignore a malformed message
       }
     })
-    // For the trade page: new chat message (instant refresh), the other person typing, or "seen"
-    for (const type of ['chat', 'typing', 'read']) {
+    // For the trade page: new chat message (instant refresh), the other person typing, or "seen".
+    // 'listing': items changed status or got new / changed offers ({ ids }), for Discover and listing pages
+    for (const type of ['chat', 'typing', 'read', 'listing']) {
       stream.addEventListener(type, (event) => {
         try {
           tradeEvent({ type, ...JSON.parse(event.data) })

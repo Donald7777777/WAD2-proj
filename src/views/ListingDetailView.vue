@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 import { api, errorMessage } from '@/lib/api'
 import StatusBadge from '@/components/StatusBadge.vue'
 import ConditionBadge from '@/components/ConditionBadge.vue'
@@ -48,13 +49,28 @@ async function onOffers(list) {
   }
 }
 
-onMounted(async () => {
+async function loadListing() {
   try {
     const response = await api.get(`/listings/${route.params.id}`)
     listing.value = response.data
+    error.value = ''
   } catch (e) {
     error.value = errorMessage(e)
   }
+}
+onMounted(loadListing)
+
+// The item was reserved, traded or freed up while you're looking at it: update the page live
+const notes = useNotificationStore()
+let reloadTimer = null
+const stopListening = notes.onTradeEvent((event) => {
+  if (event.type !== 'listing' || !event.ids?.includes(String(route.params.id))) return
+  clearTimeout(reloadTimer)
+  reloadTimer = setTimeout(loadListing, 300)
+})
+onUnmounted(() => {
+  stopListening()
+  clearTimeout(reloadTimer)
 })
 </script>
 
