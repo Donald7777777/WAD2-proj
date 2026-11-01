@@ -14,7 +14,10 @@ async function load() {
   loading.value = true
   try {
     const response = await api.get('/listings/mine')
-    listings.value = response.data
+    // Available first (you can still edit or delete them), then reserved (in an accepted trade),
+    // then traded (history). The server sends newest first, and sort() keeps that order within each group.
+    const ORDER = { available: 0, reserved: 1, traded: 2 }
+    listings.value = [...response.data].sort((a, b) => (ORDER[a.status] ?? 3) - (ORDER[b.status] ?? 3))
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
