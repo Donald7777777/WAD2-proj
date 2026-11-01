@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import { deleteImage } from '@/lib/storage'
@@ -9,6 +9,18 @@ import AppIcon from '@/components/AppIcon.vue'
 const listings = ref([])
 const error = ref('')
 const loading = ref(true)
+const search = ref('')
+
+// Search your own listings as you type: matches the title, category, description,
+// what you're looking for, or the status (e.g. "reserved"). Every word must match.
+const shown = computed(() => {
+  const words = search.value.toLowerCase().split(/\s+/).filter(Boolean)
+  if (!words.length) return listings.value
+  return listings.value.filter((l) => {
+    const text = [l.title, l.category, l.description, l.lookingFor, l.status].join(' ').toLowerCase()
+    return words.every((w) => text.includes(w))
+  })
+})
 
 async function load() {
   loading.value = true
@@ -62,8 +74,20 @@ onMounted(load)
     <RouterLink to="/listings/new" class="btn btn-primary btn-sm mt-2">List an item</RouterLink>
   </div>
 
+  <label v-if="!loading && listings.length > 0" class="th-search mb-4">
+    <AppIcon name="search" />
+    <input v-model="search" type="search" placeholder="Search your listings, e.g. camera" aria-label="Search your listings" @keydown.esc="search = ''" />
+    <span v-if="search.trim()" class="th-muted small text-nowrap pe-3">{{ shown.length }} of {{ listings.length }}</span>
+  </label>
+
+  <div v-if="!loading && listings.length > 0 && shown.length === 0" class="th-empty">
+    <strong>No listings match "{{ search.trim() }}"</strong>
+    <p>Try another word, like the item's name or category.</p>
+    <button class="btn btn-outline-dark btn-sm mt-2" @click="search = ''">Clear search</button>
+  </div>
+
   <div class="th-grid">
-    <div v-for="(listing, index) in listings" :key="listing._id" v-reveal="index">
+    <div v-for="(listing, index) in shown" :key="listing._id" v-reveal="index">
       <ListingCard :listing="listing" show-status>
         <!-- Buttons passed into the card's slot -->
         <template v-if="listing.status === 'available'">
