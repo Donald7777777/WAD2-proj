@@ -50,6 +50,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     // Headless by default; run `HEADED=1 pnpm test:e2e` to watch the browser
     headless: !process.env.HEADED,
+    // Demo mode (pnpm test:e2e:demo): watch the browser, slowed down, and save a video of every test
+    video: process.env.DEMO ? 'on' : 'off',
+    launchOptions: { slowMo: process.env.DEMO ? 400 : 0 },
   },
 
   projects: [

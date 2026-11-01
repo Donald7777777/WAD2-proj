@@ -1,5 +1,6 @@
 // Helpers for the real-stack tests.
 // Every test makes its own users and listings with unique names, so tests never clash and nothing has to be reset.
+import process from 'node:process'
 import { test as base, expect } from '@playwright/test'
 
 export { expect }
@@ -33,7 +34,12 @@ export const test = base.extend({
 
     await use(async (label, { register = true } = {}) => {
       const id = uid()
-      const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } })
+      // These windows are made by hand, so turn video on here too when running in demo mode
+      const context = await browser.newContext({
+        baseURL,
+        viewport: { width: 1280, height: 800 },
+        ...(process.env.DEMO ? { recordVideo: { dir: test.info().outputDir, size: { width: 1280, height: 800 } } } : {}),
+      })
       contexts.push(context)
       const page = await context.newPage()
       const user = {
