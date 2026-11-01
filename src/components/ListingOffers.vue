@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import { useNotificationStore } from '@/stores/notifications'
@@ -35,7 +35,21 @@ async function load() {
 }
 watch(() => props.listingId, load, { immediate: true })
 // Something new happened in your trades (e.g. a competing offer): refresh the list
-watch(() => notes.ringKey, load)
+let reloadTimer = null
+function reloadSoon() {
+  clearTimeout(reloadTimer)
+  reloadTimer = setTimeout(load, 300)
+}
+watch(() => notes.ringKey, reloadSoon)
+// Anyone's offer on this item changed (new, edited, accepted, withdrawn...): refresh it live,
+// even if you're only browsing and not part of any of the trades
+const stopListening = notes.onTradeEvent((event) => {
+  if (event.type === 'listing' && event.ids?.includes(String(props.listingId))) reloadSoon()
+})
+onUnmounted(() => {
+  stopListening()
+  clearTimeout(reloadTimer)
+})
 
 const STATUS = {
   accepted: { label: 'Accepted', tone: 'accepted', hint: 'Deal agreed, item reserved' },

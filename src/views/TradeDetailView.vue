@@ -58,6 +58,13 @@ const timelineStep = computed(() => {
   return allTicked ? 4 : 3
 })
 const isClosed = computed(() => ['rejected', 'cancelled'].includes(trade.value.status))
+// You blocked this person: the trade can still go ahead, but chat between you is off
+const iBlockedThem = computed(() => (auth.user?.blocked || []).some((id) => String(id) === String(otherUser.value._id)))
+const chatNote = computed(() =>
+  iBlockedThem.value && !isClosed.value
+    ? `You blocked ${otherName.value}, so chat is off. You can still set the meetup, tick the checklist and confirm here, or cancel the trade. Unblock them in Account settings to chat again.`
+    : '',
+)
 // Competing offer: my items here are already reserved for another accepted trade.
 // Accepting this one switches to it, and that other trade is cancelled.
 const myReserved = computed(() => (isOpen.value ? myItems.value.filter((l) => l.status === 'reserved') : []))
@@ -357,8 +364,15 @@ onMounted(loadTrade)
 const notes = useNotificationStore()
 let refreshTimer = null
 const stopListening = notes.onTradeEvent((event) => {
-  if (!trade.value || String(event.tradeId) !== String(trade.value._id)) return
-  if (event.type !== 'notification' && event.type !== 'chat') return
+  if (!trade.value) return
+  // One of this trade's items changed in another trade (e.g. reserved, or freed up again)
+  if (event.type === 'listing') {
+    const mine = [...trade.value.requestedListings, ...trade.value.offeredListings].map((l) => String(l._id))
+    if (!event.ids?.some((id) => mine.includes(id))) return
+  } else {
+    if (String(event.tradeId) !== String(trade.value._id)) return
+    if (event.type !== 'notification' && event.type !== 'chat') return
+  }
   clearTimeout(refreshTimer)
   refreshTimer = setTimeout(loadTrade, 250)
 })
@@ -462,7 +476,13 @@ onUnmounted(() => {
           <div v-if="isOpen" class="th-proposal-foot">
             <template v-if="myTurn && !countering">
               <p class="mb-0 fw-semibold">
-                {{ trade.status === 'countered' ? 'You received a counter offer.' : 'You received a proposal.' }}
+                {{
+                  trade.paused
+                    ? `Your counter offer to ${otherName} is paused because you accepted another offer.`
+                    : trade.status === 'countered'
+                      ? 'You received a counter offer.'
+                      : 'You received a proposal.'
+                }}
               </p>
               <p v-if="myReserved.length" class="th-switch-note">
                 <AppIcon name="alert" :size="16" />
@@ -481,6 +501,13 @@ onUnmounted(() => {
             <template v-else-if="!myTurn">
               <p class="th-muted mb-0">
                 <AppIcon name="clock" :size="16" class="me-1" />Waiting for {{ otherName }} to respond.
+              </p>
+              <p v-if="trade.paused" class="th-switch-note">
+                <AppIcon name="alert" :size="16" />
+                <span>
+                  {{ otherName }} accepted another offer, so their counter offer is paused. Your offer is still open, and
+                  {{ otherName }} can still switch to it if they change their mind.
+                </span>
               </p>
               <div v-if="!editingOffer" class="th-proposal-actions">
                 <button v-if="isProposer" class="btn btn-outline-dark btn-sm" @click="startEditOffer">
@@ -535,7 +562,7 @@ onUnmounted(() => {
           </div>
 
           <div v-if="trade.status === 'accepted'" class="th-proposal-foot th-proposal-foot-quiet">
-            <span class="th-muted small">Changed your mind? Let {{ otherName }} know in the chat first.</span>
+            <span class="th-muted small">{{ iBlockedThem ? `Changed your mind? You can cancel here.` : `Changed your mind? Let ${otherName} know in the chat first.` }}</span>
             <button class="btn btn-outline-danger btn-sm" @click="cancelTrade">Cancel trade</button>
           </div>
         </section>
@@ -579,7 +606,8 @@ onUnmounted(() => {
           :current-user-id="auth.user._id"
           :other-name="otherName"
           :other-read-at="trade.lastRead?.[otherUser._id] || ''"
-          :disabled="isClosed"
+          :disabled="isClosed || iBlockedThem"
+          :closed-note="chatNote"
           @system-message="loadTrade"
         />
       </div>

@@ -101,7 +101,15 @@ function refreshSoon() {
   refreshTimer = setTimeout(load, 800)
 }
 watch(() => notes.ringKey, refreshSoon)
-const stop = notes.onTradeEvent((event) => event.type === 'chat' && refreshSoon())
+// Also when any item in your trades changes (a rival's offer, an item reserved elsewhere...)
+function involves(ids) {
+  return trades.value.some((t) =>
+    [...(t.requestedListings || []), ...(t.offeredListings || [])].some((l) => ids.includes(String(l?._id || l))),
+  )
+}
+const stop = notes.onTradeEvent((event) => {
+  if (event.type === 'chat' || (event.type === 'listing' && involves(event.ids || []))) refreshSoon()
+})
 onUnmounted(() => {
   stop()
   clearTimeout(refreshTimer)

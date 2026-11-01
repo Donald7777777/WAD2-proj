@@ -19,6 +19,8 @@ const props = defineProps({
   otherName: { type: String, default: '' },
   // When the other person last read this chat (from the trade), for "Seen"
   otherReadAt: { type: String, default: '' },
+  // Why chat is off, shown above the message box (e.g. you blocked this person)
+  closedNote: { type: String, default: '' },
 })
 // Tell the parent when a system message arrives (e.g. the other user accepted)
 const emit = defineEmits(['system-message'])
@@ -315,6 +317,7 @@ onUnmounted(() => {
     </div>
 
     <div class="th-chat-foot">
+      <p v-if="closedNote" class="th-chat-closed-note mb-2"><AppIcon name="lock" :size="16" />{{ closedNote }}</p>
       <div v-if="error" class="th-field-error mb-2" role="alert">{{ error }}</div>
       <form class="th-composer" @submit.prevent="send()">
         <input
@@ -339,6 +342,8 @@ onUnmounted(() => {
 </template>
 
 <style>
+.th-chat-closed-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--paper-sunk); color: var(--ink-muted); font-size: 13px; line-height: 1.4; }
+.th-chat-closed-note svg { flex: none; margin-top: 1px; }
 .th-chat-title { flex: 1; min-width: 0; }
 .th-chat-typing-label { color: var(--emerald); font-weight: 600; }
 .th-chat-searchbtn {
