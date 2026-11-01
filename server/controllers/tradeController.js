@@ -5,6 +5,7 @@ const { buildChecklist } = require('../utils/checklists');
 const User = require('../models/User');
 const { Review } = require('../models/Review');
 const bus = require('../utils/events');
+const { alertOthers, titles: listTitles, isAre, LIVE } = require('../utils/tradeAlerts');
 
 // Two people changed the same trade at the same moment: the second one gets a friendly 409
 function conflict(err, res) {
@@ -77,7 +78,8 @@ async function withdrawBidsUsing(listings, exceptTradeId) {
         other.turn = null;
         await other.save();
         await Message.addSystemMessage(other._id,
-            `${used.map(l => l.title).join(', ')} went to another trade, so this offer was withdrawn.`);
+            `${used.map(l => l.title).join(', ')} went to another trade, so this offer was withdrawn.`,
+            { kind: 'offerWithdrawn' });
     }
     return others.length;
 }
@@ -93,13 +95,51 @@ async function warnCompetitors(trade, offererName, requested, ownerId) {
             .some(id => id.toString() === l._id.toString())) || requested[0];
         await Message.addSystemMessage(other._id,
             `Heads up: ${offererName} also made an offer for ${item.title}.`,
-            { for: rival, listing: item._id });
+            { kind: 'competitor', for: rival, by: idOf(trade.proposer), listing: item._id });
     }
     return others.length;
 }
 
 function titlesOf(listings) {
     return listings.map(l => l.title).join(', ');
+}
+
+// A bidder changed what they're giving (edited, countered, or added items): everyone else with a
+// live offer for the same item hears about it, so they can improve theirs
+function alertRivalsOfChange(tradeId, requestedListings, session) {
+    return alertOthers({
+        listings: requestedListings, exceptTradeId: tradeId, actorId: session.userId,
+        kind: 'rivalChanged',
+        text: (shared) => `Heads up: ${session.userName} changed their offer for ${listTitles(shared)}.`
+    });
+}
+
+// An item just went into an accepted deal. If its owner had a counter offer out to another bidder
+// for it (so it was that bidder's turn), put the counter on hold: hand the turn back to the owner.
+// Otherwise the bidder could accept it and cancel the owner's deal without the owner choosing to.
+async function pauseCountersFor(listings, exceptTradeId, actorId) {
+    const ids = listings.map(l => l._id);
+    const open = await Trade.Trade.find({
+        _id: { $ne: exceptTradeId },
+        status: { $in: ['pending', 'countered'] },
+        $or: [{ requestedListings: { $in: ids } }, { offeredListings: { $in: ids } }]
+    }).populate('proposer', 'name').populate('receiver', 'name');
+    const paused = [];
+    for (const other of open) {
+        const inOther = new Set([...other.requestedListings, ...other.offeredListings].map(idOf));
+        const shared = listings.filter(l => inOther.has(idOf(l)));
+        const owner = [other.proposer, other.receiver].find(u => shared.some(l => idOf(l.owner) === idOf(u)));
+        if (!owner || !other.turn || idOf(other.turn) === idOf(owner)) continue; // already the owner's call
+        const bidder = idOf(owner) === idOf(other.proposer) ? other.receiver : other.proposer;
+        other.turn = idOf(owner);
+        other.paused = true;
+        await other.save();
+        await Message.addSystemMessage(other._id,
+            `${shared.map(l => l.title).join(', ')} now ${shared.length === 1 ? 'has' : 'have'} an accepted deal with someone else, so ${owner.name}'s counter offer is paused. Your offer is still open, and ${owner.name} can still switch to it.`,
+            { kind: 'counterPaused', for: idOf(bidder), by: actorId, listing: shared[0]._id });
+        paused.push(other._id);
+    }
+    return paused;
 }
 
 // POST /api/trades  { requestedListingIds: [...], offeredListingIds: [...] }
@@ -159,7 +199,7 @@ exports.createTrade = async (req, res) => {
         await Message.addSystemMessage(trade._id,
             `${req.session.userName} offered ${titlesOf(offered)} for ${titlesOf(requested)}.` +
             (competing ? ` This is a competing offer (${competing + 1} offers now).` : ''),
-            { listing: requested[0]._id });
+            { kind: competing ? 'competingOffer' : 'proposed', by: userId, listing: requested[0]._id });
 
         res.status(201).json(trade);
     } catch (err) {
@@ -234,9 +274,24 @@ exports.acceptTrade = async (req, res) => {
 
         // The proposer's items must be free. The receiver's (the listing owner's) may be reserved
         // for another accepted trade: accepting this one switches to it and cancels that one.
-        // (Only the receiver can be accepting here, or the receiver just countered, so it's their choice.)
+        // Only the owner can make that switch, never the bidder.
         const allListings = [...trade.requestedListings, ...trade.offeredListings];
         const receiverId = idOf(trade.receiver);
+        const ownerName = trade.receiver?.name || 'The owner';
+        const reservedHere = trade.requestedListings.filter(l => l.status === 'reserved');
+        if (reservedHere.length && req.session.userId !== receiverId) {
+            // An old counter offer from before the owner accepted someone else: hand it back to them
+            trade.turn = receiverId;
+            trade.paused = true;
+            await trade.save();
+            const titles = reservedHere.map(l => l.title).join(', ');
+            await Message.addSystemMessage(trade._id,
+                `${req.session.userName} tried to accept, but ${titles} already ${reservedHere.length === 1 ? 'has' : 'have'} an accepted deal with someone else. It's ${ownerName}'s call whether to switch.`,
+                { kind: 'counterPaused', by: req.session.userId });
+            return res.status(409).json({
+                error: `${ownerName} has already accepted another offer for ${titles}, so this can't go through. Your offer is still open, and ${ownerName} can still switch to it.`
+            });
+        }
         const blocked = allListings.some(l => l.status === 'traded'
             || (l.status === 'reserved' && idOf(l.owner) !== receiverId));
         if (blocked) {
@@ -245,6 +300,7 @@ exports.acceptTrade = async (req, res) => {
 
         trade.status = 'accepted';
         trade.turn = null;
+        trade.paused = false;
         // One set of checks per item, by its category (e.g. clothing checks for a clothing item)
         const names = {
             [idOf(trade.proposer)]: trade.proposer?.name || '',
@@ -263,16 +319,27 @@ exports.acceptTrade = async (req, res) => {
                 old.turn = null;
                 await old.save();
                 await Message.addSystemMessage(old._id,
-                    `${req.session.userName} cancelled the trade to go with another offer for ${titles}.`);
+                    `${ownerName} cancelled the trade to go with another offer for ${titles}.`,
+                    { kind: 'switched', by: req.session.userId });
             }
         }
 
         await Listing.setStatus(allListings.map(l => l._id), 'reserved');
 
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} accepted the trade. Pick a meetup point below.`);
+            `${req.session.userName} accepted the trade. Pick a meetup point below.`,
+            { kind: 'accepted', by: req.session.userId });
         // Other open offers that were giving away any of these items are withdrawn
         await withdrawBidsUsing(allListings, trade._id);
+        // Counter offers the owners had out to other bidders for these items go on hold
+        const paused = await pauseCountersFor(allListings, trade._id, req.session.userId);
+        // Everyone else still bidding for any of these items: they're reserved now, but their
+        // offer stays open (the owner can still switch to it if this deal falls through)
+        await alertOthers({
+            listings: allListings, exceptTradeId: trade._id, actorId: req.session.userId,
+            kind: 'reservedElsewhere', statuses: ['pending', 'countered'], skipTradeIds: paused,
+            text: (shared) => `Heads up: ${listTitles(shared)} ${isAre(shared)} now reserved for another trade. Your offer stays open in case that deal falls through.`
+        });
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -288,9 +355,11 @@ exports.rejectTrade = async (req, res) => {
 
         trade.status = 'rejected';
         trade.turn = null;
+        trade.paused = false;
         await trade.save();
 
-        await Message.addSystemMessage(trade._id, `${req.session.userName} rejected the proposal.`);
+        await Message.addSystemMessage(trade._id, `${req.session.userName} rejected the proposal.`,
+            { kind: 'rejected', by: req.session.userId });
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -323,10 +392,14 @@ exports.counterTrade = async (req, res) => {
         trade.offeredListings = offeredIds;
         trade.status = 'countered';
         trade.turn = otherUserId(trade, userId);
+        trade.paused = false;
         await trade.save();
 
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} countered: ${titlesOf(offered)} for ${titlesOf(requested)}.`);
+            `${req.session.userName} countered: ${titlesOf(offered)} for ${titlesOf(requested)}.`,
+            { kind: 'countered', by: userId });
+        // The bidder changed what they're giving: the other bidders for this item hear about it
+        if (isProposer(trade, userId)) await alertRivalsOfChange(trade._id, requested, req.session);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -373,7 +446,8 @@ exports.requestMore = async (req, res) => {
         const otherName = isProposer(trade, userId) ? trade.receiver.name : trade.proposer.name;
         const what = listings.length ? titlesOf(listings) : 'more items';
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} asked ${otherName} to add ${what} to the trade.${note ? ` "${note}"` : ''}`);
+            `${req.session.userName} asked ${otherName} to add ${what} to the trade.${note ? ` "${note}"` : ''}`,
+            { kind: 'requested', by: userId });
         res.status(201).json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -405,7 +479,8 @@ exports.respondToRequest = async (req, res) => {
             request.status = 'declined';
             await trade.save();
             const titles = request.listings.length ? titlesOf(request.listings) : 'more items';
-            await Message.addSystemMessage(trade._id, `${req.session.userName} declined to add ${titles}.`);
+            await Message.addSystemMessage(trade._id, `${req.session.userName} declined to add ${titles}.`,
+                { kind: 'requestDeclined', by: userId });
             return res.json(await Trade.findById(trade._id));
         }
 
@@ -431,10 +506,14 @@ exports.respondToRequest = async (req, res) => {
         request.status = 'added';
         trade.status = 'countered';
         trade.turn = idOf(request.by);
+        trade.paused = false;
         await trade.save();
 
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} added ${titlesOf(listings)} to the trade. Over to you to accept.`);
+            `${req.session.userName} added ${titlesOf(listings)} to the trade. Over to you to accept.`,
+            { kind: 'itemsAdded', by: userId });
+        // The bidder added to their offer: the other bidders for this item hear about it
+        if (isProposer(trade, userId)) await alertRivalsOfChange(trade._id, trade.requestedListings, req.session);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -452,17 +531,42 @@ exports.cancelTrade = async (req, res) => {
             return res.status(400).json({ error: 'This trade can no longer be cancelled.' });
         }
 
+        const userId = req.session.userId;
+        const wasAccepted = trade.status === 'accepted';
+        const withdrawing = !wasAccepted && isProposer(trade, userId);
+        const allListings = [...trade.requestedListings, ...trade.offeredListings];
+
         // Release reserved items so they can be traded again
-        if (trade.status === 'accepted') {
-            const ids = [...trade.requestedListings, ...trade.offeredListings].map(l => l._id);
-            await Listing.setStatus(ids, 'available');
+        if (wasAccepted) {
+            await Listing.setStatus(allListings.map(l => l._id), 'available');
         }
 
         trade.status = 'cancelled';
         trade.turn = null;
         await trade.save();
 
-        await Message.addSystemMessage(trade._id, `${req.session.userName} cancelled the trade.`);
+        await Message.addSystemMessage(trade._id, `${req.session.userName} cancelled the trade.`,
+            { kind: 'cancelled', by: userId });
+
+        if (wasAccepted) {
+            // The deal fell through: everyone still waiting with an offer for these items can try again
+            await alertOthers({
+                listings: allListings, exceptTradeId: trade._id, actorId: userId,
+                kind: 'availableAgain', statuses: ['pending', 'countered'],
+                text: (shared) => `Good news: ${listTitles(shared)} ${isAre(shared)} available again. Your offer is still open.`
+            });
+        } else if (withdrawing) {
+            // A bidder pulled out: the other bidders have one less competitor
+            const left = await Trade.Trade.countDocuments({
+                status: { $in: LIVE },
+                requestedListings: { $in: trade.requestedListings.map(l => l._id) }
+            });
+            await alertOthers({
+                listings: trade.requestedListings, exceptTradeId: trade._id, actorId: userId,
+                kind: 'rivalLeft',
+                text: (shared) => `Heads up: a rival withdrew their offer for ${listTitles(shared)} (${left} offer${left === 1 ? '' : 's'} left).`
+            });
+        }
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;
@@ -503,10 +607,12 @@ exports.setMeetup = async (req, res) => {
             || before.lat !== lat || before.lng !== lng);
         if (changed) {
             await Message.addSystemMessage(trade._id,
-                `${req.session.userName} changed the meetup to ${name} on ${date} at ${time} (was ${before.name} on ${before.date} at ${before.time}).`);
+                `${req.session.userName} changed the meetup to ${name} on ${date} at ${time} (was ${before.name} on ${before.date} at ${before.time}).`,
+                { kind: 'meetupChanged', by: req.session.userId });
         } else if (!before) {
             await Message.addSystemMessage(trade._id,
-                `${req.session.userName} set the meetup: ${name} on ${date} at ${time}.`);
+                `${req.session.userName} set the meetup: ${name} on ${date} at ${time}.`,
+                { kind: 'meetup', by: req.session.userId });
         }
         res.json(await Trade.findById(trade._id));
     } catch (err) {
@@ -580,25 +686,31 @@ exports.confirmHandover = async (req, res) => {
         if (completing) {
             const ids = [...trade.requestedListings, ...trade.offeredListings].map(l => l._id);
             await Listing.setStatus(ids, 'traded');
-            await Message.addSystemMessage(trade._id, 'Both users confirmed the handover. Trade complete!');
+            await Message.addSystemMessage(trade._id, 'Both users confirmed the handover. Trade complete!',
+                { kind: 'completed' });
             // Other offers for these items can't happen any more
             const allListings = [...trade.requestedListings, ...trade.offeredListings];
             const stale = await liveTradesWith(ids, trade._id);
             for (const other of stale) {
                 const gone = allListings.filter(l => [...other.requestedListings, ...other.offeredListings]
                     .some(id => id.toString() === l._id.toString()));
-                other.status = other.status === 'accepted' ? 'cancelled' : 'rejected';
+                const wasAccepted = other.status === 'accepted';
+                other.status = wasAccepted ? 'cancelled' : 'rejected';
                 other.turn = null;
                 await other.save();
+                // Only an accepted trade had reserved its other items; an open offer never did
+                // (those items may even be reserved by a different deal, so leave them alone)
                 const freed = [...other.requestedListings, ...other.offeredListings]
                     .filter(id => !ids.some(t => t.toString() === id.toString()));
-                if (freed.length) await Listing.setStatus(freed, 'available');
+                if (wasAccepted && freed.length) await Listing.setStatus(freed, 'available');
                 await Message.addSystemMessage(other._id,
-                    `${gone.map(l => l.title).join(', ')} was traded to someone else, so this offer is closed.`);
+                    `${gone.map(l => l.title).join(', ')} was traded to someone else, so this offer is closed.`,
+                    { kind: 'offerClosed' });
             }
         } else {
             await Message.addSystemMessage(trade._id,
-                `${req.session.userName} confirmed the handover. Waiting for the other user.`);
+                `${req.session.userName} confirmed the handover. Waiting for the other user.`,
+                { kind: 'confirmed', by: req.session.userId });
         }
 
         res.json(await Trade.findById(trade._id));
@@ -638,9 +750,12 @@ exports.editOffer = async (req, res) => {
             return res.status(400).json({ error: "That's the same as your current offer." });
         }
         trade.offeredListings = offeredIds;
+        trade.paused = false;
         await trade.save();
         await Message.addSystemMessage(trade._id,
-            `${req.session.userName} changed their offer: ${titlesOf(offered)} for ${titlesOf(trade.requestedListings)}.`);
+            `${req.session.userName} changed their offer: ${titlesOf(offered)} for ${titlesOf(trade.requestedListings)}.`,
+            { kind: 'offerEdited', by: userId });
+        await alertRivalsOfChange(trade._id, trade.requestedListings, req.session);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;

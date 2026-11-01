@@ -11,7 +11,11 @@ const messageSchema = new mongoose.Schema({
     // Optional, for system messages: only this user gets a notification for it (both still see it in the chat)
     for: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     // Optional: the listing it's about (for competing-offer alerts)
-    listing: { type: mongoose.Schema.Types.ObjectId, ref: 'Listing' }
+    listing: { type: mongoose.Schema.Types.ObjectId, ref: 'Listing' },
+    // System messages: who caused it (they don't get notified about their own action) and what
+    // kind of event it is (e.g. 'accepted'), so notifications never have to guess from the wording
+    by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    kind: { type: String, default: '' }
 }, { timestamps: true });
 
 const Message = mongoose.model('Message', messageSchema);
@@ -34,7 +38,7 @@ exports.addMessage = async (data) => {
     return message;
 };
 
-// extra: { for: userId, listing: listingId } (both optional)
+// extra (all optional): { kind, by: userId who caused it, for: the only user to notify, listing: listingId }
 exports.addSystemMessage = async (tradeId, text, extra = {}) => {
     const message = await Message.create({ trade: tradeId, text, type: 'system', ...extra });
     bus.emit('message', message);

@@ -27,7 +27,7 @@ exports.sendMessage = async (req, res) => {
         const idOf = (u) => (u?._id || u).toString();
         const other = idOf(trade.proposer) === me ? idOf(trade.receiver) : idOf(trade.proposer);
         if (await User.isBlockedBetween(me, other)) {
-            return res.status(403).json({ error: "You can't message this user." });
+            return res.status(403).json({ error: 'Chat is turned off between you and this trader. You can still set the meetup and use the checklist on this page.' });
         }
 
         const text = (req.body.text || '').trim();
@@ -84,6 +84,7 @@ function eventKind(text) {
     if (text.includes(' accepted the trade')) return 'accepted';
     if (text.includes(' rejected the proposal')) return 'rejected';
     if (text.includes(' countered:')) return 'countered';
+    if (text.includes(' to go with another offer')) return 'switched';
     if (text.includes(' cancelled the trade')) return 'cancelled';
     if (text.includes(' asked ') && text.includes(' to add ')) return 'requested';
     if (text.includes(' declined to add ')) return 'requestDeclined';
@@ -124,6 +125,17 @@ function latestTradeFor(trades) {
     return map;
 }
 
+// Did `me` cause this system message? New messages record who did it (`by`). Older ones only
+// have the wording ("Ann accepted the trade"), so compare names carefully: if the other trader is
+// "Ann Lee" and I'm "Ann", "Ann Lee accepted..." is theirs, not mine.
+function causedBy(m, me, myName, otherName) {
+    if (m.by) return m.by.toString() === me;
+    if (m.kind) return false; // a new-style event with no author (e.g. a reminder) is for everyone
+    if (!myName || !m.text.startsWith(`${myName} `)) return false;
+    if (otherName && otherName !== myName && otherName.length > myName.length && m.text.startsWith(`${otherName} `)) return false;
+    return true;
+}
+
 const HISTORY_DAYS = 14;
 const HISTORY_ITEMS = 30;
 
@@ -156,9 +168,9 @@ function buildItems(messages, me, myName, trades) {
     const names = new Map(summaries.map((t) => [t._id.toString(), t.otherName]));
     const linkTo = latestTradeFor(trades);
     return messages
-        // Skip my own chat messages, and trade events I caused myself (they start with my name)
+        // Skip my own chat messages, and trade events I caused myself
         .filter((m) => m.type === 'system' || m.sender?._id?.toString() !== me)
-        .filter((m) => !(m.type === 'system' && myName && m.text.startsWith(`${myName} `)))
+        .filter((m) => m.type !== 'system' || !causedBy(m, me, myName, names.get(m.trade.toString())))
         // Messages meant for one person only (e.g. "you have a competitor")
         .filter((m) => !m.for || m.for.toString() === me)
         .map((m) => ({
@@ -166,7 +178,7 @@ function buildItems(messages, me, myName, trades) {
             // If this trade was cancelled/declined and you've since made a new trade with the same
             // person for the same item, open the new one instead of the closed one
             tradeId: linkTo.get(m.trade.toString()) || m.trade,
-            kind: m.type === 'system' ? eventKind(m.text) : 'message',
+            kind: m.type === 'system' ? m.kind || eventKind(m.text) : 'message',
             listingId: m.listing || null,
             from: m.type === 'system' ? names.get(m.trade.toString()) || 'Someone' : m.sender?.name || 'Someone',
             text: m.text === '(photo)' ? 'Sent a photo' : m.text,
@@ -310,11 +322,16 @@ exports.streamNotifications = (req, res) => {
     };
     const onTyping = tradeEvent('typing');
     const onRead = tradeEvent('read');
+    // Items changed status or got new / changed offers: open pages showing them refresh
+    const onListings = (ids) => {
+        res.write(`event: listing\ndata: ${JSON.stringify({ ids })}\n\n`);
+    };
 
     bus.on('message', onMessage);
     bus.on('reaction', onReaction);
     bus.on('typing', onTyping);
     bus.on('read', onRead);
+    bus.on('listings', onListings);
     // A comment line every 25 s keeps proxies from closing an idle connection
     const keepAlive = setInterval(() => res.write(': ping\n\n'), 25000);
     req.on('close', () => {
@@ -322,6 +339,7 @@ exports.streamNotifications = (req, res) => {
         bus.off('reaction', onReaction);
         bus.off('typing', onTyping);
         bus.off('read', onRead);
+        bus.off('listings', onListings);
         clearInterval(keepAlive);
     });
 };

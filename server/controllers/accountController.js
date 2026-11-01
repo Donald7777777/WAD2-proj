@@ -4,6 +4,7 @@ const Listing = require('../models/Listing');
 const Trade = require('../models/Trade');
 const Message = require('../models/Message');
 const { Reaction } = require('../models/Reaction');
+const { alertOthers, titles, isAre } = require('../utils/tradeAlerts');
 
 const isValidId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
 const RESET_MINUTES = 30;
@@ -124,10 +125,16 @@ exports.toggleBlock = async (req, res) => {
                 trade.status = 'cancelled';
                 trade.turn = null;
                 await trade.save();
-                await Message.addSystemMessage(trade._id, 'This proposal was closed.');
+                await Message.addSystemMessage(trade._id, 'This proposal was closed.', { kind: 'update', by: me });
             }
         }
-        res.json({ blocked: !already });
+        // Accepted trades stay (you may still want to swap), but chat between you is off.
+        // Tell the browser so it can explain that, and point to cancelling if needed.
+        const acceptedTrades = already ? 0 : await Trade.Trade.countDocuments({
+            status: 'accepted',
+            $or: [{ proposer: me, receiver: id }, { proposer: id, receiver: me }]
+        });
+        res.json({ blocked: !already, acceptedTrades });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to update blocking.' });
@@ -153,14 +160,29 @@ exports.deleteAccount = async (req, res) => {
             status: { $in: ['pending', 'countered', 'accepted'] },
             $or: [{ proposer: me }, { receiver: me }]
         });
+        const freedTrades = [];
         for (const trade of live) {
             if (trade.status === 'accepted') {
                 await Listing.setStatus([...trade.requestedListings, ...trade.offeredListings], 'available');
+                freedTrades.push(trade);
             }
             trade.status = 'cancelled';
             trade.turn = null;
             await trade.save();
-            await Message.addSystemMessage(trade._id, `${user.name} cancelled the trade because they deleted their account.`);
+            await Message.addSystemMessage(trade._id, `${user.name} cancelled the trade because they deleted their account.`,
+                { kind: 'cancelled', by: me });
+        }
+        // The other trader's items are free again: anyone else with an offer for them can try again
+        for (const trade of freedTrades) {
+            const theirs = await Listing.Listing.find({
+                _id: { $in: [...trade.requestedListings, ...trade.offeredListings] },
+                owner: { $ne: me }
+            });
+            await alertOthers({
+                listings: theirs, exceptTradeId: trade._id, actorId: me,
+                kind: 'availableAgain', statuses: ['pending', 'countered'],
+                text: (shared) => `Good news: ${titles(shared)} ${isAre(shared)} available again. Your offer is still open.`
+            });
         }
 
         // Remove listings that weren't traded, plus their likes and saves
