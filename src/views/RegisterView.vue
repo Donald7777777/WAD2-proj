@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { errorMessage } from '@/lib/api'
+import { isValidEmail, passwordProblem, nameProblem, PASSWORD_HINT } from '@/lib/validation'
 import logoMark from '@/assets/logo-mark.svg'
 
 const auth = useAuthStore()
@@ -17,6 +18,12 @@ const loading = ref(false)
 
 async function register() {
   error.value = ''
+  const problem =
+    nameProblem(name.value) || (!isValidEmail(email.value) && 'Please enter a valid email address.') || passwordProblem(password.value)
+  if (problem) {
+    error.value = problem
+    return
+  }
   if (password.value !== confirmPassword.value) {
     error.value = 'Passwords do not match.'
     return
@@ -54,8 +61,8 @@ async function register() {
             </div>
             <div class="mb-3">
               <label class="form-label" for="password">Password</label>
-              <input id="password" v-model="password" type="password" class="form-control" minlength="6" required />
-              <div class="form-text">At least 6 characters.</div>
+              <input id="password" v-model="password" type="password" class="form-control" required />
+              <div class="form-text">{{ PASSWORD_HINT }}</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="confirm">Confirm password</label>

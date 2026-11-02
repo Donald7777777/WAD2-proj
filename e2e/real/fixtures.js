@@ -5,7 +5,7 @@ import { test as base, expect } from '@playwright/test'
 
 export { expect }
 
-const PASSWORD = 'e2e-pass-123'
+const PASSWORD = 'E2e-pass-123'
 
 /** Short unique string, e.g. "m3k9x2ab" */
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6)

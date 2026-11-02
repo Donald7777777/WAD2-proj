@@ -302,7 +302,7 @@ async function save() {
         Add categories or keywords (e.g. "film lens", "turntable"). We use these to find matches for you.
       </p>
 
-      <form class="th-search th-search-sm mb-3" @submit.prevent="addWant()">
+      <form class="th-search mb-3" @submit.prevent="addWant()">
         <AppIcon name="search" />
         <input v-model="newWant" placeholder="Add a keyword" aria-label="Add a keyword" />
         <button class="btn btn-primary btn-sm" type="submit">Add</button>
@@ -389,6 +389,8 @@ async function save() {
 .th-tab-private[aria-selected="true"] { border-bottom-color: var(--lime-ink); }
 .th-me-private-note { display: flex; align-items: center; gap: 6px; margin: -4px 0 14px; color: var(--ink-muted); font-size: 13px; }
 .th-me-wants { max-width: 1100px; }
+/* This card stacks its contents, so flex: 1 would squash the bar's height onto the button. Keep it full height. */
+.th-me-wants .th-search { flex: none; }
 .th-me-grid-head { display: flex; justify-content: flex-end; margin: -6px 0 10px; }
 .th-tlink-manage { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink); }
 

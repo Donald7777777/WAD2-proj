@@ -5,6 +5,7 @@ const Trade = require('../models/Trade');
 const Message = require('../models/Message');
 const { Reaction } = require('../models/Reaction');
 const { alertOthers, titles, isAre } = require('../utils/tradeAlerts');
+const { passwordProblem } = require('../utils/validation');
 
 const isValidId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
 const RESET_MINUTES = 30;
@@ -69,8 +70,9 @@ exports.resetPassword = async (req, res) => {
     try {
         const token = String(req.body.token || '');
         const password = String(req.body.password || '');
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Your new password must be at least 6 characters.' });
+        const problem = passwordProblem(password);
+        if (problem) {
+            return res.status(400).json({ error: problem });
         }
         const user = token && await User.User.findOne({
             resetTokenHash: hashToken(token),

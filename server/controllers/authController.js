@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { isValidEmail, passwordProblem, nameProblem } = require('../utils/validation');
 
 // Register a new account and log the user in
 exports.register = async (req, res) => {
@@ -11,12 +12,9 @@ exports.register = async (req, res) => {
         if (!name || !email || !password) {
             return res.status(400).json({ error: 'All fields are required.' });
         }
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-        }
-
-        if (name.length < 2 || name.length > 40) {
-            return res.status(400).json({ error: 'Your name should be 2 to 40 characters.' });
+        const problem = nameProblem(name) || (!isValidEmail(email) && 'Please enter a valid email address.') || passwordProblem(password);
+        if (problem) {
+            return res.status(400).json({ error: problem });
         }
 
         const existing = await User.findByEmail(email);

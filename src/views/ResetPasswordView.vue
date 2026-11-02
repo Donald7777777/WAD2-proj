@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
 import { showToast } from '@/lib/toast'
+import { passwordProblem, PASSWORD_HINT } from '@/lib/validation'
 import logoMark from '@/assets/logo-mark.svg'
 
 // Choose a new password from a reset link (/reset-password?token=...)
@@ -16,6 +17,11 @@ const token = String(route.query.token || '')
 
 async function submit() {
   error.value = ''
+  const problem = passwordProblem(password.value)
+  if (problem) {
+    error.value = problem
+    return
+  }
   if (password.value !== repeat.value) {
     error.value = "The passwords don't match."
     return
@@ -50,8 +56,8 @@ async function submit() {
             <form @submit.prevent="submit">
               <div class="mb-3">
                 <label class="form-label" for="password">New password</label>
-                <input id="password" v-model="password" type="password" class="form-control" minlength="6" autocomplete="new-password" required />
-                <div class="form-text">At least 6 characters.</div>
+                <input id="password" v-model="password" type="password" class="form-control" autocomplete="new-password" required />
+                <div class="form-text">{{ PASSWORD_HINT }}</div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="repeat">New password again</label>
