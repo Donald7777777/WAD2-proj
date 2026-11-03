@@ -160,10 +160,11 @@ onUnmounted(() => map?.remove())
 </script>
 
 <template>
-  <div class="th-mapwrap" :data-mode="mode">
+  <!-- is-ready sits on the wrapper: MapLibre adds its own classes to the map div, and a Vue class binding there would wipe them -->
+  <div class="th-mapwrap" :class="{ 'is-ready': ready }" :data-mode="mode">
     <img v-if="failed && selected" :src="staticMap(selected.lat, selected.lng)" alt="Map of the meetup point" class="th-map" />
     <div v-else-if="failed" class="th-map th-map-empty">Search for a place to see it on the map.</div>
-    <div v-else ref="container" class="th-livemap" :class="{ 'is-ready': ready }" role="region" aria-label="Map"></div>
+    <div v-else ref="container" class="th-livemap" role="region" aria-label="Map"></div>
     <p v-if="!failed && mode === 'pick' && draggable && selected" class="th-map-hint">Drag the pin to the exact spot, like a specific exit.</p>
   </div>
 </template>
@@ -174,7 +175,7 @@ onUnmounted(() => map?.remove())
   width: 100%; height: 340px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line);
   background: linear-gradient(135deg, #E6F6DA, #DDF3EA 55%, #D7EFEF); opacity: 0.6; transition: opacity 0.4s ease;
 }
-.th-livemap.is-ready { opacity: 1; }
+.th-mapwrap.is-ready .th-livemap { opacity: 1; }
 .th-mapwrap[data-mode="view"] .th-livemap { height: 240px; }
 @media (max-width: 575.98px) { .th-livemap { height: 280px; } }
 .th-map-empty { display: flex; align-items: center; justify-content: center; color: var(--ink-muted); font-size: 14px; aspect-ratio: 512 / 300; }
