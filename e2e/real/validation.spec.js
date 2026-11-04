@@ -73,9 +73,10 @@ test.describe('change password', () => {
   test('a weak new password is rejected', async ({ makeUser }) => {
     const user = await makeUser('Change')
     await fillChange(user.page, { current: user.password, next: 'abc' })
-    // The browser itself blocks a too-short password (minlength 6), so nothing is sent
-    const tooShort = await user.page.getByLabel('New password', { exact: true }).evaluate((el) => el.validity.tooShort)
-    expect(tooShort).toBe(true)
+    // Same rules as sign up: the page explains what is missing, and nothing is sent
+    await expect(user.page.getByText('Password must be at least 8 characters.')).toBeVisible()
+    await fillChange(user.page, { current: user.password, next: 'longenough1!' })
+    await expect(user.page.getByText('Password must contain at least 1 capital letter.')).toBeVisible()
     await expect(user.page).toHaveURL(/\/account/)
   })
 

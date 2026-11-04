@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { api, errorMessage } from '@/lib/api'
 import { deleteImage } from '@/lib/storage'
 import { showToast } from '@/lib/toast'
+import { passwordProblem, PASSWORD_HINT } from '@/lib/validation'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -20,6 +21,11 @@ const pwError = ref('')
 const pwSaving = ref(false)
 async function changePassword() {
   pwError.value = ''
+  const problem = passwordProblem(next.value)
+  if (problem) {
+    pwError.value = problem
+    return
+  }
   if (next.value !== repeat.value) {
     pwError.value = "The new passwords don't match."
     return
@@ -98,8 +104,8 @@ async function deleteAccount() {
         <label class="form-label" for="pw-current">Current password</label>
         <input id="pw-current" v-model="current" type="password" class="form-control" autocomplete="current-password" required />
         <label class="form-label" for="pw-new">New password</label>
-        <input id="pw-new" v-model="next" type="password" class="form-control" autocomplete="new-password" minlength="6" required />
-        <div class="form-text">At least 6 characters.</div>
+        <input id="pw-new" v-model="next" type="password" class="form-control" autocomplete="new-password" required />
+        <div class="form-text">{{ PASSWORD_HINT }}</div>
         <label class="form-label" for="pw-repeat">New password again</label>
         <input id="pw-repeat" v-model="repeat" type="password" class="form-control" autocomplete="new-password" required />
         <div v-if="pwError" class="th-field-error" role="alert">{{ pwError }}</div>

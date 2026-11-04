@@ -43,7 +43,6 @@ function checkPassword(password, stored) {
 exports.User = User;
 exports.hashPassword = hashPassword;
 exports.checkPassword = checkPassword;
-exports.PRIVATE = PRIVATE;
 
 exports.createUser = async (name, email, password) => {
     return User.create({ name, email, passwordHash: hashPassword(password) });

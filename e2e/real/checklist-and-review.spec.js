@@ -7,8 +7,7 @@ async function tickEverything(page) {
   await expect(boxes.first()).toBeVisible() // count() does not wait, so wait for the list to load first
   const count = await boxes.count()
   expect(count).toBeGreaterThan(0)
-  // One box at a time: each tick is saved to the server, and ticking the next one while the last is still
-  // being saved makes the server answer "trade was just changed" (409). Wait for each save to finish.
+  // One box at a time, waiting for each save, so the test also checks every tick reaches the server
   for (let i = 0; i < count; i++) {
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/checklist') && r.request().method() === 'PUT'),
@@ -73,7 +72,11 @@ test('the checklist is saved: ticks are still there after a reload', async ({ ma
   await dismissDealPopup(seller.page)
   const checklist = seller.page.getByRole('region', { name: 'Inspection checklist' })
   const first = checklist.getByRole('checkbox').first()
-  await first.check()
+  // The tick shows at once; wait for the server to save it before reloading
+  await Promise.all([
+    seller.page.waitForResponse((r) => r.url().includes('/checklist') && r.request().method() === 'PUT'),
+    first.check(),
+  ])
   await expect(first).toBeChecked()
 
   await seller.page.reload()

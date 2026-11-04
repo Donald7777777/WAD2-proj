@@ -233,6 +233,8 @@ async function goToMeetup() {
 async function loadTrade() {
   try {
     const response = await api.get(`/trades/${route.params.id}`)
+    // A checklist tick is still saving: this copy may not have it yet, so keep what's on screen
+    if (savingTicks) return
     const first = !trade.value
     trade.value = response.data
     findNewerTrade()
@@ -279,9 +281,27 @@ async function findNewerTrade() {
   }
 }
 
+// Checklist ticks show straight away (no waiting for the server), then save in the background.
+// While any tick is still saving, replies are ignored, so an older reply can't untick a newer box.
+let savingTicks = 0
+async function toggleCheck(index, checked) {
+  trade.value.checklist[index][isProposer.value ? 'proposerChecked' : 'receiverChecked'] = checked
+  savingTicks++
+  error.value = ''
+  try {
+    const response = await api.put(`/trades/${trade.value._id}/checklist`, { index, checked })
+    savingTicks--
+    if (!savingTicks) trade.value = response.data
+  } catch (e) {
+    savingTicks--
+    error.value = errorMessage(e)
+    if (!savingTicks) await loadTrade() // show what was really saved
+  }
+}
+
 // Shared helper for accept / reject / cancel / confirm etc.
-// Ticking the checklist and confirming are safe to repeat, so a clash just retries once
-const RETRY_ON_CLASH = ['checklist', 'confirm']
+// Confirming is safe to repeat, so a clash just retries once
+const RETRY_ON_CLASH = ['confirm']
 async function action(method, path, body, retried = false) {
   error.value = ''
   try {
@@ -354,6 +374,8 @@ async function rejectTrade() {
 }
 
 async function confirmHandover() {
+  // Wait for the last ticks to save first, or the server would say not everything is ticked
+  while (savingTicks) await new Promise((resolve) => setTimeout(resolve, 100))
   if ((await action('post', 'confirm')) && trade.value.status === 'completed') {
     showToast('Traded! Enjoy your new item.')
   }
@@ -652,7 +674,7 @@ onUnmounted(() => {
             :their-confirmed="theirConfirmed"
             :locked="trade.status !== 'accepted' || myConfirmed"
             :other-name="otherName"
-            @toggle="(index, checked) => action('put', 'checklist', { index, checked })"
+            @toggle="toggleCheck"
             @confirm="confirmHandover"
           />
         </template>

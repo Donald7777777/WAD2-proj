@@ -18,8 +18,9 @@ exports.changePassword = async (req, res) => {
     try {
         const current = String(req.body.currentPassword || '');
         const next = String(req.body.newPassword || '');
-        if (next.length < 6) {
-            return res.status(400).json({ error: 'Your new password must be at least 6 characters.' });
+        const problem = passwordProblem(next);
+        if (problem) {
+            return res.status(400).json({ error: problem });
         }
         const user = await User.User.findById(req.session.userId);
         if (!user || !User.checkPassword(current, user.passwordHash)) {
@@ -56,7 +57,9 @@ exports.forgotPassword = async (req, res) => {
         await user.save();
 
         const link = `/reset-password?token=${token}`;
-        console.log(`Password reset link for ${user.email}: http://localhost:5173${link}`);
+        // The site address the request came from (localhost in development, the live address on Render)
+        const site = req.get('origin') || 'http://localhost:5173';
+        console.log(`Password reset link for ${user.email}: ${site}${link}`);
         if (process.env.NODE_ENV !== 'production') reply.devResetLink = link;
         res.json(reply);
     } catch (err) {

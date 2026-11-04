@@ -23,6 +23,17 @@ export default defineConfig([
     },
   },
 
+  // The Express server runs in Node.js and uses require/module.exports
+  {
+    files: ['server/**/*.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
 

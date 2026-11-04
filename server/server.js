@@ -5,6 +5,7 @@ const path = require("path");
 const express = require("express");
 const mongoose = require("mongoose");
 const session = require("express-session");
+const { MongoStore } = require("connect-mongo");
 const routes = require("./routes/routes");
 const { startReminders } = require("./utils/reminders");
 
@@ -14,11 +15,13 @@ const PORT = process.env.PORT || 8000;
 // Middleware
 server.use(express.json());
 
-// Session setup (login is remembered with a session cookie)
+// Session setup (login is remembered with a session cookie).
+// Sessions are kept in MongoDB, so restarting the server doesn't log everyone out.
 server.use(session({
     secret: process.env.SECRET,
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl: process.env.DB }),
     cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 7 }
 }));
 

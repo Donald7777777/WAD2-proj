@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export const IMAGES_BUCKET = 'images'
+const IMAGES_BUCKET = 'images'
 
 const MAX_BYTES = 5 * 1024 * 1024
 // Photos are shrunk in the browser before uploading: at most 1600 px on the long side
@@ -54,7 +54,7 @@ export async function uploadImage(original, folder = 'listings') {
   return { path, url: getImageUrl(path) }
 }
 
-export function getImageUrl(path) {
+function getImageUrl(path) {
   return supabase.storage.from(IMAGES_BUCKET).getPublicUrl(path).data.publicUrl
 }
 

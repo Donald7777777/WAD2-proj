@@ -669,15 +669,17 @@ exports.updateChecklist = async (req, res) => {
             return res.status(400).json({ error: 'Checklist item not found.' });
         }
 
+        // Change only this one tick in the database, so quick ticks in a row (or both people
+        // ticking at once) don't clash. __v goes up so a save() elsewhere still spots the change.
         const checked = Boolean(req.body.checked);
-        if (proposer) {
-            item.proposerChecked = checked;
-            if (!checked) trade.proposerConfirmed = false;
-        } else {
-            item.receiverChecked = checked;
-            if (!checked) trade.receiverConfirmed = false;
-        }
-        await trade.save();
+        const side = proposer ? 'proposer' : 'receiver';
+        const update = { $set: { [`checklist.${index}.${side}Checked`]: checked }, $inc: { __v: 1 } };
+        if (!checked) update.$set[`${side}Confirmed`] = false;
+        await Trade.Trade.updateOne({ _id: trade._id }, update);
+
+        // Tell the other person's open page to refresh (a save() does this in the Trade model)
+        const ids = [...trade.requestedListings, ...trade.offeredListings].map(id => id.toString());
+        if (ids.length) bus.emit('listings', ids);
         res.json(await Trade.findById(trade._id));
     } catch (err) {
         if (conflict(err, res)) return;

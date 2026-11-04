@@ -110,4 +110,3 @@ exports.buildChecklist = (listings, ownerNames = {}) => {
     return items;
 };
 
-exports.checklistsByCategory = checklistsByCategory;

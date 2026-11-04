@@ -5,9 +5,9 @@ IS216 G5 project (Mok of all trades). A platform for trading pre-used items: lis
 ## Stack
 
 - **Frontend:** Vue 3 (Composition API) + Vue Router + Pinia + Bootstrap 5 + Axios, built with Vite (project root)
-- **Backend:** Node.js + Express + MongoDB (Mongoose), sessions for login (`server/`)
+- **Backend:** Node.js + Express + MongoDB (Mongoose), sessions for login stored in MongoDB with `connect-mongo` (`server/`)
 - **Images:** Supabase Storage (`src/lib/storage.js`)
-- **Maps:** OneMap search and static map API (no key needed)
+- **Maps:** MapLibre GL with free OpenFreeMap tiles for the interactive map; OneMap for place search, and its static map as a backup picture (no keys needed)
 
 ## Where each feature lives
 
@@ -15,8 +15,8 @@ IS216 G5 project (Mok of all trades). A platform for trading pre-used items: lis
 | --- | --- | --- | --- |
 | 1. Listings, search & matching | Agnella | `HomeView`, `ListingFormView`, `ListingDetailView`, `MyListingsView`, `ProfileView` | `listingController.js`, `utils/matching.js` |
 | 2. Trade proposals | Valerie | `ProposeTradeView`, `TradesView`, `TradeDetailView`, `ItemPicker` | `tradeController.js` (create/accept/reject/counter/cancel) |
-| 3. Chat | Ze Xin | `ChatBox` (polls every 3 s) | `messageController.js` |
-| 4. Meetup map | Donald | `MeetupPicker` | `tradeController.setMeetup` |
+| 3. Chat | Ze Xin | `ChatBox` (live updates over Server-Sent Events, plus polling as a backup) | `messageController.js` |
+| 4. Meetup map | Donald | `MeetupPicker`, `MeetupMap`, `MeetupWhen` | `tradeController.setMeetup` |
 | 5. Inspection checklist | Jing Wen | `InspectionChecklist` | `tradeController.updateChecklist/confirmHandover`, `utils/checklists.js` |
 
 ## Setup (each teammate, once)
@@ -56,13 +56,30 @@ pnpm dev
 
 Vite forwards every `/api` request to the Express server (see `vite.config.js`), so the login cookie works without extra setup.
 
-## Production (e.g. AWS EC2)
+## Production (Render, or any Node host such as AWS EC2)
 
 ```sh
 pnpm build          # builds the Vue app into dist/
 cd server
 pnpm start          # Express serves the API and dist/ on port 8000
 ```
+
+On Render, one free Web Service runs both:
+
+- Build command: `corepack enable && pnpm install --frozen-lockfile && pnpm build && cd server && pnpm install --prod`
+- Start command: `cd server && node server.js`
+- Environment variables: `DB`, `SECRET`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `NODE_VERSION=22`
+- In MongoDB Atlas, allow access from anywhere (`0.0.0.0/0`) under Network Access.
+
+**Forgot password:** there is no email service, so the reset link is shown on the page (and printed in the server log).
+Setting `NODE_ENV=production` hides it from the page, which makes the feature unusable, so leave `NODE_ENV` unset for the demo.
+
+## Account rules
+
+- Passwords (sign up, reset and change password): at least 8 characters, with 1 capital letter and 1 special character.
+  The rules are in `src/lib/validation.js` (checked on the form) and `server/utils/validation.js` (checked again by the server).
+- Email must look like `name@example.com`. Names are 2 to 40 characters and must not already be taken.
+- Demo accounts from `node seed.js` use the password `password123` (made before these rules; logging in still works).
 
 ## Tests and lint
 
