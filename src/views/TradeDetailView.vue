@@ -19,6 +19,7 @@ import { showToast } from '@/lib/toast'
 import { useNotificationStore } from '@/stores/notifications'
 import { formatMeetup, placeName } from '@/lib/format'
 
+
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -47,6 +48,26 @@ const myConfirmed = computed(() =>
 const theirConfirmed = computed(() =>
   isProposer.value ? trade.value.receiverConfirmed : trade.value.proposerConfirmed,
 )
+
+// Phones: once accepted, chat / meetup / checklist each get their own page (a hub of cards links to them).
+const narrowQuery = window.matchMedia('(max-width: 991.98px)')
+const isNarrow = ref(narrowQuery.matches)
+const onNarrowChange = (e) => { isNarrow.value = e.matches }
+narrowQuery.addEventListener('change', onNarrowChange)
+onUnmounted(() => narrowQuery.removeEventListener('change', onNarrowChange))
+const section = computed(() =>
+  isNarrow.value && trade.value && showMeetup.value ? String(route.params.section || '') : '',
+)
+const showHub = computed(() => isNarrow.value && trade.value && showMeetup.value && !section.value)
+const SECTION_TITLE = { chat: 'Chat', meetup: 'Meetup point and time', checklist: 'Inspection checklist' }
+const checklistDone = computed(() => trade.value.checklist.filter((c) => (isProposer.value ? c.proposerChecked : c.receiverChecked)).length)
+const meetupSummary = computed(() => {
+  const m = trade.value.meetup
+  if (!m?.name) return 'Not chosen yet'
+  const when = formatMeetup(m.date, m.time)
+  return when ? `${placeName(m.name)} · ${when}` : placeName(m.name)
+})
+function openSection(name) { router.push(`/trades/${route.params.id}/${name}`) }
 
 // Which of the five timeline steps is in progress (display only)
 const timelineStep = computed(() => {
@@ -205,6 +226,7 @@ function keepBrowsing() {
 async function goToMeetup() {
   moment.value = null
   await nextTick()
+  if (isNarrow.value) return openSection('meetup')
   document.querySelector('.th-meetup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
@@ -397,7 +419,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <RouterLink to="/trades" class="th-back"><AppIcon name="back" :size="18" />My trades</RouterLink>
+  <RouterLink v-if="section" :to="`/trades/${route.params.id}`" class="th-back"><AppIcon name="back" :size="18" />Back to trade</RouterLink>
+  <RouterLink v-else to="/trades" class="th-back"><AppIcon name="back" :size="18" />My trades</RouterLink>
   <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
 
   <template v-if="trade">
@@ -427,12 +450,12 @@ onUnmounted(() => {
       @retry="retryOffer"
       @browse="keepBrowsing"
     />
-    <TradeTimeline v-if="!isClosed" :current="timelineStep" class="mb-4" />
-    <div v-else class="alert alert-light mb-4">
+    <TradeTimeline v-if="!isClosed && !section" :current="timelineStep" class="mb-4" />
+    <div v-else-if="isClosed" class="alert alert-light mb-4">
       This trade was {{ trade.status === 'rejected' ? 'declined' : 'cancelled' }}. The items are available again.
     </div>
     <!-- You made a new offer for the same item after this one was closed: point to it -->
-    <RouterLink v-if="newerTrade" :to="`/trades/${newerTrade._id}`" class="th-newer-trade mb-4">
+    <RouterLink v-if="newerTrade && !section" :to="`/trades/${newerTrade._id}`" class="th-newer-trade mb-4">
       <span class="th-newer-icon"><AppIcon name="swap" :size="18" /></span>
       <span class="th-newer-text">
         <b>There's a newer trade for this item</b>
@@ -443,7 +466,8 @@ onUnmounted(() => {
 
     <div class="row g-4">
       <!-- Left: the offer and actions -->
-      <div class="col-lg-7 d-flex flex-column gap-4">
+      <div v-if="!section || section !== 'chat'" class="col-lg-7 d-flex flex-column gap-4">
+        <template v-if="!section">
         <section class="card th-proposal" aria-label="The trade">
           <div class="th-proposal-sides">
             <div class="th-side th-side-you">
@@ -592,14 +616,36 @@ onUnmounted(() => {
           <ReviewForm v-else :trade-id="trade._id" :them="otherName" @done="onReviewed" />
         </section>
 
+        </template>
+
         <!-- Features 4 and 5: meetup and inspection checklist -->
-        <template v-if="showMeetup">
+        <nav v-if="showHub" class="th-hub" aria-label="Arrange the handover">
+          <button type="button" class="th-hub-card" data-hub="meetup" @click="openSection('meetup')">
+            <span class="th-hub-icon"><AppIcon name="pin" :size="20" /></span>
+            <span class="th-hub-text"><b>Meetup point and time</b><span>{{ meetupSummary }}</span></span>
+            <AppIcon name="chevron" :size="18" class="th-hub-go" />
+          </button>
+          <button type="button" class="th-hub-card" data-hub="checklist" @click="openSection('checklist')">
+            <span class="th-hub-icon"><AppIcon name="check" :size="20" /></span>
+            <span class="th-hub-text"><b>Inspection checklist</b><span>{{ checklistDone }} of {{ trade.checklist.length }} ticked by you</span></span>
+            <AppIcon name="chevron" :size="18" class="th-hub-go" />
+          </button>
+          <button type="button" class="th-hub-card" data-hub="chat" @click="openSection('chat')">
+            <span class="th-hub-icon"><AppIcon name="chat" :size="20" /></span>
+            <span class="th-hub-text"><b>Chat</b><span>Message {{ otherName }}</span></span>
+            <AppIcon name="chevron" :size="18" class="th-hub-go" />
+          </button>
+        </nav>
+        <h2 v-if="section" class="th-sub-title">{{ SECTION_TITLE[section] }}</h2>
+        <template v-if="showMeetup && !showHub">
           <MeetupPicker
+            v-if="!section || section === 'meetup'"
             :meetup="trade.meetup"
             :can-edit="trade.status === 'accepted'"
             @save="saveMeetup"
           />
           <InspectionChecklist
+            v-if="!section || section === 'checklist'"
             :checklist="trade.checklist"
             :is-proposer="isProposer"
             :my-confirmed="myConfirmed"
@@ -613,9 +659,12 @@ onUnmounted(() => {
       </div>
 
       <!-- Right: feature 3, chat -->
-      <div class="col-lg-5">
+      <div v-if="!showHub && (!section || section === 'chat')" class="col-lg-5" :class="{ 'col-12': section }">
         <ChatBox
           class="th-chat-sticky"
+          :class="{ 'th-chat-screen': section === 'chat' }"
+          :back-to="section === 'chat' ? `/trades/${route.params.id}` : ''"
+          :other-avatar="otherUser.avatarUrl || ''"
           :trade-id="trade._id"
           :current-user-id="auth.user._id"
           :other-name="otherName"

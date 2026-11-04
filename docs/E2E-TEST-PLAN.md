@@ -31,6 +31,10 @@ depend on old data and nothing needs resetting.
 | Trade proposals | Propose, accept, reject, counter offer, withdraw, cancel an accepted trade, My trades tabs | `e2e/real/trade-proposal.spec.js` |
 | Chat | Two users send and receive messages, chat search | `e2e/real/chat.spec.js` |
 | Meetup | Search a place (OneMap), pick day and time, save, other person sees it, change it | `e2e/real/meetup.spec.js` |
+| Sign-up and password rules | Weak passwords (short, no capital, no special character), bad email, short or duplicate name, rules enforced by the server too, change password | `e2e/real/validation.spec.js` |
+| My listings search | Search by name, category and status, "no match" message, available items listed before reserved ones | `e2e/real/my-listings-search.spec.js` |
+| Blocking | Block with an accepted trade (chat off, checklist still works), server refuses messages, unblock in Account settings, blocked person cannot propose | `e2e/real/blocking.spec.js` |
+| Competing offers and alerts | Second bidder, owner accepts one bid (others told "reserved"), deal cancelled ("available again"), rival withdraws or changes offer, owner switches to a competing offer, paused counter offer | `e2e/real/competing-offers.spec.js` |
 | Checklist, handover, reviews | Tick every item, confirm handover (locked until all ticked), trade completes, items marked Traded, rate the other person, review shows on their profile, ticks are saved | `e2e/real/checklist-and-review.spec.js` |
 
 Extra, fast layer with a fake API (login, register, guards, browse, create listing, logout, empty states): `e2e/mocked/`.
@@ -41,3 +45,5 @@ Extra, fast layer with a fake API (login, register, guards, browse, create listi
   not depend on the internet. Our own Express server and MongoDB are always real.
 - Photo upload (Supabase Storage) is not covered. Listings in tests have no photo.
 - Real tests leave a few test users and listings in the `tradehappy_e2e` database. Drop that database any time to clean up.
+
+- Phone layout: `e2e/real/mobile-trade.spec.js` (hub plus separate meetup, checklist and chat pages on 390px; desktop stays one page).

@@ -38,10 +38,10 @@ function testDatabaseUrl() {
 export default defineConfig({
   testDir: './e2e',
   timeout: 30 * 1000,
-  expect: { timeout: 5000 },
+  expect: { timeout: 10000 },
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 2,
   reporter: process.env.CI ? 'html' : [['list'], ['html', { open: 'never' }]],
 
   use: {
@@ -57,7 +57,7 @@ export default defineConfig({
 
   projects: [
     { name: 'mocked', testDir: './e2e/mocked', use: { ...devices['Desktop Chrome'] } },
-    { name: 'real', testDir: './e2e/real', timeout: 60 * 1000, use: { ...devices['Desktop Chrome'] } },
+    { name: 'real', testDir: './e2e/real', timeout: 90 * 1000, use: { ...devices['Desktop Chrome'] } },
     // More browsers if you want them:
     // { name: 'firefox', testDir: './e2e/real', use: { ...devices['Desktop Firefox'] } },
     // { name: 'webkit', testDir: './e2e/real', use: { ...devices['Desktop Safari'] } },

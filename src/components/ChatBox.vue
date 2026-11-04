@@ -4,6 +4,7 @@ import { api, errorMessage } from '@/lib/api'
 import { useNotificationStore } from '@/stores/notifications'
 import ImageUploader from './ImageUploader.vue'
 import AppIcon from './AppIcon.vue'
+import UserAvatar from './UserAvatar.vue'
 import { formatMessageTime } from '@/lib/format'
 
 // The trade chat (feature 3).
@@ -12,6 +13,9 @@ import { formatMessageTime } from '@/lib/format'
 // - "Seen" under your last message once they've read it
 // - Search: filter the conversation and highlight what matches
 const props = defineProps({
+  // Phone chat page: show a back arrow and the other person's avatar in the header
+  backTo: { type: String, default: '' },
+  otherAvatar: { type: String, default: '' },
   tradeId: String,
   currentUserId: String,
   disabled: Boolean,
@@ -229,13 +233,15 @@ onUnmounted(() => {
 <template>
   <section class="card th-chat" aria-label="Chat">
     <div class="th-chat-head">
-      <span class="th-card-icon"><AppIcon name="chat" /></span>
+      <RouterLink v-if="backTo" :to="backTo" class="th-chat-back" aria-label="Back to trade"><AppIcon name="back" :size="20" /></RouterLink>
+      <UserAvatar v-if="backTo" :name="otherName || 'Trader'" :src="otherAvatar" size="sm" />
+      <span v-else class="th-card-icon"><AppIcon name="chat" /></span>
       <div class="th-chat-title">
         <h2>{{ otherName ? `Chat with ${otherName}` : 'Chat' }}</h2>
         <p>
           <Transition name="th-fade" mode="out-in">
             <span v-if="typingName" key="typing" class="th-chat-typing-label">{{ typingName }} is typing…</span>
-            <span v-else key="sub">Messages and trade updates in one place.</span>
+            <span v-else key="sub">{{ backTo ? 'Trade chat' : 'Messages and trade updates in one place.' }}</span>
           </Transition>
         </p>
       </div>

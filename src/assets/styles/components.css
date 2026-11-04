@@ -548,3 +548,41 @@ body:not(:has(.th-tabbar)) .th-detail-cta { bottom: var(--space-3); }
 .th-photo-send summary::-webkit-details-marker { display: none; }
 .th-photo-send summary:hover { color: var(--ink); background: var(--paper-sunk); }
 .th-photo-send[open] summary { margin-bottom: var(--space-2); }
+
+
+/* ---------- Trade page on phones: hub of cards + one task per page ---------- */
+.th-hub { display: flex; flex-direction: column; gap: var(--space-3); }
+.th-hub-card { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 72px; padding: var(--space-3) var(--space-4); text-align: left; color: var(--ink); background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius-lg, 16px); box-shadow: 0 1px 2px rgba(30, 24, 16, 0.06); transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
+.th-hub-card:hover { border-color: var(--ink-muted); box-shadow: 0 6px 16px rgba(30, 24, 16, 0.10); }
+.th-hub-card:active { transform: scale(0.985); }
+.th-hub-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.th-hub-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--paper-sunk); }
+.th-hub-text { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
+.th-hub-text b { font-weight: 600; }
+.th-hub-text span { color: var(--ink-muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-hub-go { flex: none; color: var(--ink-muted); }
+.th-sub-title { margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+@media (max-width: 991.98px) { .th-chat-log { height: calc(100dvh - 330px); min-height: 280px; } }
+@media (prefers-reduced-motion: reduce) { .th-hub-card { transition: none; } }
+
+/* ---------- Chat page on phones: a full-screen messenger ---------- */
+.th-chat-back { display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; margin-left: -6px; border-radius: var(--radius-pill); color: var(--ink); transition: background 160ms ease, transform 160ms ease; }
+.th-chat-back:hover { background: var(--paper-sunk); }
+.th-chat-back:active { transform: scale(0.94); }
+.th-chat-back:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (max-width: 991.98px) {
+  body:has(.th-chat-screen) .th-tabbar { display: none; }
+  body:has(.th-chat-screen) .th-main { padding-bottom: 0; }
+  body:has(.th-chat-screen) .th-back, body:has(.th-chat-screen) .th-trade-head { display: none; }
+  .th-chat-screen { position: fixed; inset: 0; z-index: 1040; display: flex; flex-direction: column; height: 100dvh; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: var(--paper-raised); }
+  .th-chat-screen .th-chat-head { align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); padding-top: calc(var(--space-2) + env(safe-area-inset-top)); }
+  .th-chat-screen .th-chat-head h2 { font-size: 17px; line-height: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .th-chat-screen .th-chat-head p { margin: 0; font-size: 13px; }
+  .th-chat-screen .th-chat-searchbtn { border: 0; background: transparent; }
+  .th-chat-screen .th-chat-log { flex: 1; height: auto; min-height: 0; padding: var(--space-3); gap: 6px; overscroll-behavior: contain; scroll-padding-bottom: var(--space-4); }
+  .th-chat-screen .th-bubble { max-width: 82%; font-size: 16px; line-height: 22px; box-shadow: 0 1px 2px rgba(30, 24, 16, 0.06); }
+  .th-chat-screen .th-chat-event { font-size: 12px; line-height: 17px; max-width: 94%; text-align: center; }
+  .th-chat-screen .th-chat-foot { padding: var(--space-2) var(--space-3); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); background: var(--paper-raised); }
+  .th-chat-screen .th-composer .form-control { font-size: 16px; min-height: 44px; }
+  .th-chat-screen .th-photo-send summary { padding: 6px 0; }
+}

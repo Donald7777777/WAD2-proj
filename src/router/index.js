@@ -87,6 +87,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/trades/:id/:section(chat|meetup|checklist)',
+      name: 'trade-section',
+      component: () => import('../views/TradeDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/trades/:id',
       name: 'trade',
       component: () => import('../views/TradeDetailView.vue'),

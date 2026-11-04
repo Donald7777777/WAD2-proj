@@ -54,8 +54,14 @@ test('chat can be searched', async ({ makeUser }) => {
 
   await buyer.page.goto(`/trades/${trade._id}`)
   await dismissDealPopup(buyer.page)
-  await buyer.page.getByRole('button', { name: 'Search messages' }).click()
-  await buyer.page.getByLabel('Search this chat').fill('pineapple')
+  // Retry: the pop-up can appear late and swallow the first click
+  const box = buyer.page.getByLabel('Search this chat')
+  await expect(async () => {
+    await dismissDealPopup(buyer.page)
+    if (!(await box.isVisible())) await buyer.page.getByRole('button', { name: 'Search messages' }).click({ timeout: 2000 })
+    await expect(box).toBeVisible({ timeout: 1500 })
+  }).toPass({ timeout: 30000 })
+  await box.fill('pineapple')
   await expect(buyer.page.getByText('1 found')).toBeVisible()
   await expect(buyer.page.getByText('See you at the station')).toHaveCount(0)
 })
