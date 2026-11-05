@@ -5,6 +5,7 @@ import { useNotificationStore } from '@/stores/notifications'
 import ImageUploader from './ImageUploader.vue'
 import AppIcon from './AppIcon.vue'
 import UserAvatar from './UserAvatar.vue'
+import ImageLightbox from './ImageLightbox.vue'
 import { formatMessageTime } from '@/lib/format'
 
 // The trade chat (feature 3).
@@ -228,6 +229,13 @@ onUnmounted(() => {
   stopListening?.()
   document.removeEventListener('visibilitychange', onVisible)
 })
+// Tap a photo in the chat to see it full screen (while searching, a tap jumps to the message instead)
+const photo = ref('')
+function openPhoto(event, message) {
+  if (q.value) return
+  event.stopPropagation()
+  photo.value = message.imageUrl
+}
 </script>
 
 <template>
@@ -289,7 +297,7 @@ onUnmounted(() => {
           @click="q && jumpTo(message)"
           @keydown.enter="q && jumpTo(message)"
         >
-          <img v-if="message.imageUrl" :src="message.imageUrl" alt="Photo" class="th-bubble-img" />
+          <img v-if="message.imageUrl" :src="message.imageUrl" alt="Photo" class="th-bubble-img th-zoomable" @click="openPhoto($event, message)" />
           <div v-if="message.text !== '(photo)'">
             <template v-for="(part, i) in parts(message.text)" :key="i">
               <mark v-if="part.hit" class="th-chat-hit">{{ part.text }}</mark>
@@ -344,6 +352,7 @@ onUnmounted(() => {
         <ImageUploader folder="chat" :show-preview="false" @uploaded="send($event.url)" />
       </details>
     </div>
+    <ImageLightbox v-if="photo" :images="[{ url: photo }]" title="Chat photo" @close="photo = ''" />
   </section>
 </template>
 
@@ -362,6 +371,7 @@ onUnmounted(() => {
 }
 .th-chat-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 14px; outline: none; }
 .th-chat-hit { padding: 0 2px; border-radius: 3px; background: #F6D84A; color: #2B2200; }
+.th-zoomable { cursor: zoom-in; }
 .th-bubble.is-result { cursor: pointer; }
 .th-bubble.is-result:hover { filter: brightness(0.97); }
 .th-bubble.is-found { animation: th-chat-found 1.6s ease; }

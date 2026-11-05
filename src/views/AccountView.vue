@@ -1,4 +1,5 @@
 <script setup>
+import PasswordInput from '@/components/PasswordInput.vue'
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -102,12 +103,12 @@ async function deleteAccount() {
       <h2 id="pw-title"><AppIcon name="lock" :size="20" />Change password</h2>
       <form class="th-settings-form" @submit.prevent="changePassword">
         <label class="form-label" for="pw-current">Current password</label>
-        <input id="pw-current" v-model="current" type="password" class="form-control" autocomplete="current-password" required />
+        <PasswordInput id="pw-current" v-model="current" autocomplete="current-password" required />
         <label class="form-label" for="pw-new">New password</label>
-        <input id="pw-new" v-model="next" type="password" class="form-control" autocomplete="new-password" required />
+        <PasswordInput id="pw-new" v-model="next" autocomplete="new-password" required />
         <div class="form-text">{{ PASSWORD_HINT }}</div>
         <label class="form-label" for="pw-repeat">New password again</label>
-        <input id="pw-repeat" v-model="repeat" type="password" class="form-control" autocomplete="new-password" required />
+        <PasswordInput id="pw-repeat" v-model="repeat" autocomplete="new-password" required />
         <div v-if="pwError" class="th-field-error" role="alert">{{ pwError }}</div>
         <div><button class="btn btn-primary" type="submit" :disabled="pwSaving">{{ pwSaving ? 'Saving…' : 'Change password' }}</button></div>
       </form>
@@ -138,7 +139,7 @@ async function deleteAccount() {
         <label class="form-label" for="del-confirm">Type <b>DELETE</b> to confirm</label>
         <input id="del-confirm" v-model="confirmText" type="text" class="form-control" autocomplete="off" />
         <label class="form-label" for="del-password">Your password</label>
-        <input id="del-password" v-model="deletePassword" type="password" class="form-control" autocomplete="current-password" />
+        <PasswordInput id="del-password" v-model="deletePassword" autocomplete="current-password" />
         <div v-if="delError" class="th-field-error" role="alert">{{ delError }}</div>
         <div>
           <button class="btn btn-danger" type="submit" :disabled="deleting || confirmText !== 'DELETE' || !deletePassword">

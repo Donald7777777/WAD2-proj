@@ -1,4 +1,5 @@
 <script setup>
+import PasswordInput from '@/components/PasswordInput.vue'
 import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -48,7 +49,7 @@ async function login() {
                 <label class="form-label" for="password">Password</label>
                 <RouterLink to="/forgot-password" class="small">Forgot password?</RouterLink>
               </div>
-              <input id="password" v-model="password" type="password" class="form-control" autocomplete="current-password" required />
+              <PasswordInput id="password" v-model="password" autocomplete="current-password" required />
             </div>
             <button class="btn btn-success w-100" type="submit" :disabled="loading">Log in</button>
           </form>

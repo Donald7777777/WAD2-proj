@@ -1,4 +1,5 @@
 <script setup>
+import PasswordInput from '@/components/PasswordInput.vue'
 import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '@/lib/api'
@@ -56,12 +57,12 @@ async function submit() {
             <form @submit.prevent="submit">
               <div class="mb-3">
                 <label class="form-label" for="password">New password</label>
-                <input id="password" v-model="password" type="password" class="form-control" autocomplete="new-password" required />
+                <PasswordInput id="password" v-model="password" autocomplete="new-password" required />
                 <div class="form-text">{{ PASSWORD_HINT }}</div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="repeat">New password again</label>
-                <input id="repeat" v-model="repeat" type="password" class="form-control" autocomplete="new-password" required />
+                <PasswordInput id="repeat" v-model="repeat" autocomplete="new-password" required />
               </div>
               <button class="btn btn-success w-100" type="submit" :disabled="loading">{{ loading ? 'Saving…' : 'Save new password' }}</button>
             </form>

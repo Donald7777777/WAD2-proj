@@ -55,10 +55,13 @@ const isNarrow = ref(narrowQuery.matches)
 const onNarrowChange = (e) => { isNarrow.value = e.matches }
 narrowQuery.addEventListener('change', onNarrowChange)
 onUnmounted(() => narrowQuery.removeEventListener('change', onNarrowChange))
-const section = computed(() =>
-  isNarrow.value && trade.value && showMeetup.value ? String(route.params.section || '') : '',
-)
-const showHub = computed(() => isNarrow.value && trade.value && showMeetup.value && !section.value)
+// Chat gets its own page for every trade; meetup and checklist only exist once the trade is accepted
+const section = computed(() => {
+  if (!isNarrow.value || !trade.value) return ''
+  const name = String(route.params.section || '')
+  return name === 'chat' || showMeetup.value ? name : ''
+})
+const showHub = computed(() => isNarrow.value && !!trade.value && !section.value)
 const SECTION_TITLE = { chat: 'Chat', meetup: 'Meetup point and time', checklist: 'Inspection checklist' }
 const checklistDone = computed(() => trade.value.checklist.filter((c) => (isProposer.value ? c.proposerChecked : c.receiverChecked)).length)
 const meetupSummary = computed(() => {
@@ -641,13 +644,13 @@ onUnmounted(() => {
         </template>
 
         <!-- Features 4 and 5: meetup and inspection checklist -->
-        <nav v-if="showHub" class="th-hub" aria-label="Arrange the handover">
-          <button type="button" class="th-hub-card" data-hub="meetup" @click="openSection('meetup')">
+        <nav v-if="showHub" class="th-hub" aria-label="Trade pages">
+          <button v-if="showMeetup" type="button" class="th-hub-card" data-hub="meetup" @click="openSection('meetup')">
             <span class="th-hub-icon"><AppIcon name="pin" :size="20" /></span>
             <span class="th-hub-text"><b>Meetup point and time</b><span>{{ meetupSummary }}</span></span>
             <AppIcon name="chevron" :size="18" class="th-hub-go" />
           </button>
-          <button type="button" class="th-hub-card" data-hub="checklist" @click="openSection('checklist')">
+          <button v-if="showMeetup" type="button" class="th-hub-card" data-hub="checklist" @click="openSection('checklist')">
             <span class="th-hub-icon"><AppIcon name="check" :size="20" /></span>
             <span class="th-hub-text"><b>Inspection checklist</b><span>{{ checklistDone }} of {{ trade.checklist.length }} ticked by you</span></span>
             <AppIcon name="chevron" :size="18" class="th-hub-go" />

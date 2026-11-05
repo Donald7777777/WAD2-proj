@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
+import ImageLightbox from './ImageLightbox.vue'
 
 // Photo gallery for a listing: big photo with arrows, swipe on phones, thumbnails underneath
 const props = defineProps({
@@ -11,6 +12,7 @@ const props = defineProps({
 })
 
 const index = ref(0)
+const viewing = ref(false)
 const direction = ref('next')
 const count = computed(() => props.images.length)
 const current = computed(() => props.images[index.value])
@@ -40,14 +42,20 @@ function onDown(event) {
   startX = event.clientX
 }
 function onUp(event) {
-  if (startX === null || count.value < 2) return
+  if (startX === null) return
   const dx = event.clientX - startX
   startX = null
-  if (Math.abs(dx) > 40) (dx < 0 ? next : prev)()
+  if (Math.abs(dx) > 40 && count.value > 1) return (dx < 0 ? next : prev)()
+  // A tap (not a swipe) on the photo itself opens the full-screen viewer
+  if (Math.abs(dx) <= 10 && current.value && !event.target.closest('button')) viewing.value = true
 }
 function onKey(event) {
   if (event.key === 'ArrowRight') next()
   if (event.key === 'ArrowLeft') prev()
+  if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && current.value) {
+    event.preventDefault()
+    viewing.value = true
+  }
 }
 </script>
 
@@ -55,8 +63,9 @@ function onKey(event) {
   <div class="th-gallery" :class="{ 'is-traded': traded }">
     <div
       class="th-detail-media th-gallery-main"
-      :tabindex="count > 1 ? 0 : null"
-      :aria-label="count > 1 ? `Photo ${index + 1} of ${count}. Use the arrow keys to see more.` : null"
+      :class="{ 'is-zoomable': current }"
+      :tabindex="current ? 0 : null"
+      :aria-label="current ? `Photo ${index + 1} of ${count}. Press Enter to view full screen${count > 1 ? ', arrow keys for more' : ''}.` : null"
       @pointerdown="onDown"
       @pointerup="onUp"
       @keydown="onKey"
@@ -70,6 +79,10 @@ function onKey(event) {
         <span>No photo yet</span>
       </div>
 
+      <button v-if="current" type="button" class="th-gallery-expand" aria-label="View photo full screen" @click="viewing = true">
+        <AppIcon name="expand" :size="18" />
+      </button>
+
       <template v-if="count > 1">
         <button type="button" class="th-gallery-arrow th-gallery-prev" aria-label="Previous photo" @click="prev">
           <AppIcon name="chevron" :size="22" class="th-flip" />
@@ -80,6 +93,8 @@ function onKey(event) {
         <span class="th-gallery-count">{{ index + 1 }} / {{ count }}</span>
       </template>
     </div>
+
+    <ImageLightbox v-if="viewing" :images="images" :start="index" :title="title || 'Item'" @close="viewing = false" />
 
     <div v-if="count > 1" class="th-gallery-thumbs">
       <button
@@ -101,6 +116,13 @@ function onKey(event) {
 .th-gallery { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 @media (min-width: 768px) { .th-gallery { position: sticky; top: 88px; align-self: start; } .th-gallery .th-detail-media { position: relative; top: 0; } }
 .th-gallery-main { touch-action: pan-y; user-select: none; outline: none; }
+.th-gallery-main.is-zoomable { cursor: zoom-in; }
+.th-gallery-expand {
+  position: absolute; top: 12px; right: 12px; z-index: 2; display: inline-grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88); color: #10302A; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.45); transition: transform 0.2s ease;
+}
+.th-gallery-expand:hover { transform: scale(1.08); }
+.th-gallery-expand:active { transform: scale(0.94); }
 .th-gallery-main:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
 .th-gallery-arrow {
   position: absolute; top: 50%; z-index: 2; display: inline-flex; align-items: center; justify-content: center;

@@ -11,7 +11,7 @@ test('phone: accepted trade shows a hub that opens meetup, checklist and chat pa
   await dismissDealPopup(page) // on a phone this button opens the meetup page, so go back to the hub
   await page.goto(`/trades/${trade._id}`)
 
-  const hub = page.getByRole('navigation', { name: 'Arrange the handover' })
+  const hub = page.getByRole('navigation', { name: 'Trade pages' })
   await expect(hub).toBeVisible()
   await expect(page.getByRole('region', { name: 'The trade' })).toBeVisible()
   // The long sections are not on the hub
@@ -54,7 +54,7 @@ test('desktop: accepted trade keeps everything on one page', async ({ makeUser }
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto(`/trades/${trade._id}`)
   await dismissDealPopup(page)
-  await expect(page.getByRole('navigation', { name: 'Arrange the handover' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Trade pages' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: /Chat with/ })).toBeVisible()
   await expect(page.getByRole('region', { name: 'The trade' })).toBeVisible()
 })

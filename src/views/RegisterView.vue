@@ -1,4 +1,5 @@
 <script setup>
+import PasswordInput from '@/components/PasswordInput.vue'
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -61,12 +62,12 @@ async function register() {
             </div>
             <div class="mb-3">
               <label class="form-label" for="password">Password</label>
-              <input id="password" v-model="password" type="password" class="form-control" required />
+              <PasswordInput id="password" v-model="password" autocomplete="new-password" required />
               <div class="form-text">{{ PASSWORD_HINT }}</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="confirm">Confirm password</label>
-              <input id="confirm" v-model="confirmPassword" type="password" class="form-control" required />
+              <PasswordInput id="confirm" v-model="confirmPassword" autocomplete="new-password" required />
             </div>
             <button class="btn btn-success w-100" type="submit" :disabled="loading">Sign up</button>
           </form>
