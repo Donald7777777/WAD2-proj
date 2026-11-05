@@ -17,11 +17,13 @@ server.use(express.json());
 
 // Session setup (login is remembered with a session cookie).
 // Sessions are kept in MongoDB, so restarting the server doesn't log everyone out.
+// touchAfter: only refresh a session's expiry once a day, not on every request (fewer database writes,
+// and no "session to touch" errors from a request that finishes just after its user logged out)
 server.use(session({
     secret: process.env.SECRET,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: process.env.DB }),
+    store: MongoStore.create({ mongoUrl: process.env.DB, touchAfter: 24 * 60 * 60 }),
     cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 7 }
 }));
 
